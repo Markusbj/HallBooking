@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+
+# pipenv
+Pipfile.lock
+
+# virtualenv/venv
+.venv/
+env/
+venv/
+
+# VS Code
+.vscode/
+
+# Mac/Linux
+.DS_Store
+
+# Pytest
+.pytest_cache/
+
+# Logs
+*.log
