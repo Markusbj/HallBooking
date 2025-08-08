@@ -4,6 +4,19 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+psycopg2-binary = "*"
+fastapi = "<1,>=0.111"
+fastapi-users = "==12.*"
+fastapi-users-db-sqlalchemy = "==7.*"
+sqlalchemy = ">=2"
+uvicorn = "*"
+email-validator = "*"
+passlib = {extras = ["bcrypt"], version = "*"}
+python-multipart = "*"
+pydantic-settings = "*"
+aiosqlite = "*"
+setuptools = "*"
+bcrypt = "==4.0.1"
 
 [dev-packages]
 
