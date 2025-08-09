@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from datetime import datetime
 from fastapi_users import schemas
 from typing import Optional
@@ -14,29 +14,13 @@ class UserUpdate(schemas.BaseUserUpdate):
     full_name: Optional[str] = None
 
 
-
-
-
 class BookingCreate(BaseModel):
     hall: str
     start_time: datetime
     end_time: datetime
 
-
-
-
-    @field_validator("end_time")
-    @classmethod
-    def check_interval(cls, v, info):
-        start = info.data.get("start_time")
-        if start and v <= start:
+    @model_validator(mode="after")
+    def check_interval(self):
+        if self.end_time <= self.start_time:
             raise ValueError("end_time må være etter start_time")
-        return v
-# class BookingOut(BaseModel):
-#     id: int
-#     hall: str
-#     start_time: datetime
-#     end_time: datetime
-
-#     class Config:
-#         orm_mode = True
+        return self
