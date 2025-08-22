@@ -1,5 +1,6 @@
 from pydantic import BaseModel, model_validator
 from datetime import datetime
+from pydantic import BaseModel, field_validator
 from fastapi_users import schemas
 from typing import Optional
 import uuid
@@ -19,8 +20,11 @@ class BookingCreate(BaseModel):
     start_time: datetime
     end_time: datetime
 
-    @model_validator(mode="after")
-    def check_interval(self):
-        if self.end_time <= self.start_time:
+
+    @field_validator("end_time")
+    @classmethod
+    def check_interval(cls, v, info):
+        start = info.data.get("start_time")
+        if start and v <= start:
             raise ValueError("end_time må være etter start_time")
         return self
