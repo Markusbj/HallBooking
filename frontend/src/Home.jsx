@@ -34,6 +34,7 @@ export default function Home({ userEmail, isAdmin, onLogout, token: propToken })
     }
   }
 
+  // logout håndteres av NavBar dropdown — bare send onLogout videre om den finnes
   const handleLogout = () => {
     if (onLogout) onLogout();
     else {
@@ -46,14 +47,7 @@ export default function Home({ userEmail, isAdmin, onLogout, token: propToken })
 
   return (
     <div className="home-container">
-      <header className="site-header" aria-hidden="false">
-        <div style={{ flex: 1 }}></div>
-        <div className="user-info" style={{ gap: 12 }}>
-          <div className="user-email">{userEmail || "Gjest"}</div>
-          <button className="btn-logout" onClick={handleLogout}>Logg ut</button>
-        </div>
-      </header>
-
+      {/* Fjernet ekstra header — navbar viser merke og konto */}
       <main className="content" role="main">
         <section className="card">
           <h2>Velkommen</h2>

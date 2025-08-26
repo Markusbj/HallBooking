@@ -6,7 +6,12 @@ import Home from "./Home";
 import Bookings from "./Bookings";
 import AdminPanel from "./AdminPanel";
 import NavBar from "./NavBar";
-import "./App.css";
+//import "./App.css";
+import "./styles/global.css"; // <-- sørg for global styles lastes
+import "./components/NavBar.css";
+import "./components/Home.css";
+import "./components/Bookings.css";
+
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);

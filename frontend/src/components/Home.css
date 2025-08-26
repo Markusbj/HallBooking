@@ -1,0 +1,26 @@
+@import "../styles/variables.css";
+@import "../styles/global.css";
+
+.home-container { min-height:100vh; display:flex; flex-direction:column; gap:24px; padding-top: calc(var(--navbar-height) + var(--navbar-pad)); box-sizing:border-box; }
+.content { display:grid; grid-template-columns: 1fr 320px; gap:20px; align-items:start; max-width:var(--max-width); margin:0 auto; padding:0 16px; box-sizing:border-box; }
+
+.lead { color:var(--muted); }
+.actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+
+.site-header { display:none; } /* brand & user handled by navbar */
+
+.user-email { color:var(--muted); font-size:14px; }
+
+/* welcome card */
+.card h2 { margin-top:0; }
+.card .btn { margin-top:8px; }
+
+/* small card style */
+.card.small { padding:16px; }
+
+/* bookings list */
+ul.upcoming { list-style:none; padding:0; margin:0; }
+ul.upcoming li { display:flex; justify-content:space-between; align-items:center; padding:12px; border-radius:8px; background:rgba(0,0,0,0.02); margin-bottom:10px; }
+
+/* footer spacing */
+.site-footer { margin-top:24px; }

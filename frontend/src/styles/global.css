@@ -1,0 +1,81 @@
+@import "./variables.css";
+
+/* reset / base */
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+  margin:0;
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  background:var(--bg-gradient);
+  color:var(--text);
+  line-height:1.4;
+}
+
+/* utilities */
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* buttons */
+.btn, .submit-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight:600;
+  text-decoration:none;
+  background: var(--accent);
+  color: white;
+}
+.btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.06);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius:8px;
+}
+.btn-secondary { background: var(--accent-2); color:white; }
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+/* small card variant */
+.card.small { padding: 16px; }
+
+/* form basics used across app */
+.form-group { margin-bottom: 12px; }
+label { display:block; margin-bottom:6px; font-size:14px; color:var(--muted); }
+input, select, textarea {
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid rgba(0,0,0,0.06);
+  background: #fff;
+  font-size:14px;
+}
+
+/* subtle helper classes */
+.lead { color:var(--muted); margin-top:6px; margin-bottom:12px; }
+
+/* footer */
+.site-footer { text-align:center; color:var(--muted); padding:18px 0; font-size:13px; }
+
+/* dark-mode root switch (toggle by .dark on <html>) */
+:root.dark {
+  --bg-gradient: linear-gradient(180deg,#0f1724 0%, #071026 100%);
+  --surface: #071026;
+  --text: #e6eef8;
+  --muted: #9fb0c8;
+}
