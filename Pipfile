@@ -17,6 +17,7 @@ pydantic-settings = "*"
 aiosqlite = "*"
 setuptools = "*"
 bcrypt = "==4.0.1"
+tzlocal = "*"
 
 [dev-packages]
 

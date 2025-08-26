@@ -155,3 +155,412 @@ input[type="password"]:focus {
 .auth-links a:hover {
   color: #D88A44;
 }
+:root{
+  --bg-gradient: linear-gradient(180deg, #F7FAFC 0%, #F2F2F2 100%);
+  --surface: #ffffff;
+  --text: #222222;
+  --muted: #6b7280;
+  --accent: #D88A44;     /* primary */
+  --accent-2: #7A8B6F;   /* secondary */
+  --radius: 10px;
+  --shadow: 0 6px 18px rgba(16,24,40,0.06);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+
+  /* statusfarger for kalender */
+  --free: #2ecc71;         /* grønn = ledig */
+  --booked-color: #e74c3c; /* rød = opptatt */
+  --blocked-color: #7A8B6F; /* grå = blokkert (admin) */
+}
+
+/* sikre god kontrast */
+body {
+  background: var(--bg-gradient);
+  color: var(--text);
+  font-family: var(--font-sans);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Home layout */
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 28px;
+  box-sizing: border-box;
+}
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.brand-text h1 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.brand-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.user-info {
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+
+.user-email {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* content grid */
+.content {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  color: var(--text); /* sørg for at tekst er mørk */
+}
+
+.card.small { padding: 16px; }
+
+.lead {
+  color: var(--muted);
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+
+/* Buttons */
+.actions {
+  display:flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  color: white;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary { background: var(--accent); }
+.btn-secondary { background: var(--accent-2); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+/* logout button (compact) */
+.btn-logout {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(0,0,0,0.04);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  color: var(--muted);
+  padding: 10px 0;
+  font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 880px) {
+  .content { grid-template-columns: 1fr; }
+  .brand-text h1 { font-size: 18px; }
+}
+
+/* --- Kalender (ukevisning) --- */
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.day-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.day-header {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding: 8px 6px;
+  font-weight:700;
+  background: rgba(0,0,0,0.03);
+  border-radius: 8px;
+}
+
+.day-header.clickable { cursor: pointer; }
+
+.day-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* kompakt rutenett for dager (24 timervisning i kompakt format) */
+.day-slots-compact {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+/* generelle slot-knapper */
+.slot-button {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06);
+  cursor: pointer;
+  color: #fff;
+  font-weight:600;
+  transition: transform .06s ease, box-shadow .08s ease;
+  height: 52px;
+}
+
+/* kompakte varianter */
+.slot-button.compact {
+  height: 36px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+/* status-stiler */
+.slot-button.empty,
+.slot-button.compact.empty {
+  background: var(--free);
+  color: #004d1a;
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+.slot-button.booked,
+.slot-button.compact.booked {
+  background: var(--booked-color);
+  color: #fff;
+}
+
+.slot-button.blocked,
+.slot-button.compact.blocked {
+  background: var(--blocked-color);
+  color: #fff;
+}
+
+.slot-button.selected {
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+  outline: 3px solid rgba(0,0,0,0.06);
+}
+
+.slot-hour { font-size: 14px; }
+.slot-meta { font-size: 12px; opacity: 0.9; }
+
+/* day panel (utvidet detaljvisning) */
+.day-panel {
+  position: relative;
+  margin-top: 12px;
+  background: var(--surface);
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  max-width: 820px;
+}
+
+.day-panel-slots {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+/* side panel */
+.side-panel {
+  margin-top: 12px;
+  background: var(--surface);
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  max-width: 420px;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+}
+
+/* selected info */
+.selected-info h4 { margin: 0 0 8px 0; }
+
+/* legend in side-panel */
+.side-panel .legend { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.side-panel .legend .row { display:flex; gap:8px; align-items:center; }
+
+/* responsive adjustments */
+@media (max-width: 1100px) {
+  .calendar-week { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 800px) {
+  .calendar-week { grid-template-columns: repeat(2, 1fr); }
+  .day-slots-compact { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 480px) {
+  .calendar-week { grid-template-columns: repeat(1, 1fr); }
+  .day-slots-compact { grid-template-columns: repeat(6, 1fr); }
+  .day-panel-slots { max-height: 220px; }
+}
+
+.app-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(255,255,255,0.98);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(16,24,40,0.06);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+}
+
+.app-navbar-inner {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* venstre og høyre sides innhold */
+.nav-left, .nav-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  z-index: 1100; /* sørg for at linker ligger over brand */
+}
+
+/* venstre plasseres normalt */
+.nav-left {
+  flex: 1;
+  justify-content: flex-start;
+}
+
+/* høyre holder plass til brukerinfo (tom foreløpig) */
+.nav-right {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+/* brand plassert absolutt i midten */
+.nav-brand {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1090;
+  display: flex;
+  align-items: center;
+  pointer-events: none; /* gjør brand ikke-interaktiv hvis du vil at links fungerer */
+}
+
+.nav-brand-link {
+  pointer-events: auto; /* men la linken være klikkbar */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.nav-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* tydelig merke-tekst */
+.nav-brand-text {
+  font-weight: 800;
+  color: var(--text);
+  font-size: 16px;
+  letter-spacing: 0.2px;
+}
+
+/* nav-link styling */
+.nav-link {
+  color: var(--text);
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.nav-link:hover {
+  background: rgba(0,0,0,0.04);
+}
+
+/* push page content under navbar */
+.app-content {
+  padding-top: 88px; /* gi litt mer luft enn navbar for å være sikker */
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+
+/* responsive tweaks */
+@media (max-width: 720px) {
+  .nav-brand-text { font-size: 14px; }
+  .nav-logo { width: 30px; height: 30px; }
+  .app-content { padding-top: 76px; }
+  .nav-left { gap: 8px; }
+}
+.site-header .brand { display: none; }
+/* Behold brukerinfo i header */
+.site-header { display:flex; justify-content:flex-end; align-items:center; gap:12px; padding: 8px 0; }
