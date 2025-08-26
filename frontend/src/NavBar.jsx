@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "./assets/logo.png";
 
 export default function NavBar() {
   const loc = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [contactEmail, setContactEmail] = useState(localStorage.getItem("contact_email") || "");
+  const [contactPhone, setContactPhone] = useState(localStorage.getItem("contact_phone") || "");
   const [darkMode, setDarkMode] = useState(localStorage.getItem("dark_mode") === "true");
   const userEmail = localStorage.getItem("userEmail") || "";
   const ref = useRef(null);
@@ -23,20 +26,15 @@ export default function NavBar() {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  useEffect(() => {
-    function onScroll() {
-      if (window.scrollY > 20) document.documentElement.classList.add("nav-collapsed");
-      else document.documentElement.classList.remove("nav-collapsed");
-    }
-    // initial set
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   if (loc.pathname === "/login" || loc.pathname === "/register") return null;
 
-  function handleSave() { /* ...existing save logic if present... */ }
+  function handleSave() {
+    localStorage.setItem("contact_email", contactEmail);
+    localStorage.setItem("contact_phone", contactPhone);
+    if (contactEmail) localStorage.setItem("userEmail", contactEmail);
+    setOpen(false);
+  }
+
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("userEmail");
@@ -69,15 +67,39 @@ export default function NavBar() {
               aria-expanded={open}
               title={userEmail || "Konto"}
             >
-              <span className="nav-user-avatar">
-                {userEmail ? userEmail.charAt(0).toUpperCase() : "H"}
-              </span>
+              <span className="nav-user-avatar">{userEmail ? userEmail.charAt(0).toUpperCase() : "H"}</span>
               <span className="nav-user-name">{userEmail ? userEmail : "Min konto"}</span>
             </button>
 
             <div className={`nav-dropdown ${open ? "open" : ""}`} role="menu" aria-hidden={!open}>
-              {/* ...dropdown content (settings, dark mode, contact info, logout)... */}
-              <div className="dropdown-section" style={{ borderTop: "1px solid rgba(0,0,0,0.04)", marginTop: 8, paddingTop: 8 }}>
+              <div className="dropdown-section">
+                <div className="dropdown-title">Konto</div>
+                <div className="dropdown-row">
+                  <label className="row-label">Bruker</label>
+                  <div className="row-value">{userEmail || "Ulogget"}</div>
+                </div>
+              </div>
+
+              <div className="dropdown-section">
+                <div className="dropdown-title">Innstillinger</div>
+
+                <div className="dropdown-row">
+                  <label className="row-label">Dark mode</label>
+                  <div className="row-value">
+                    <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} aria-label="Dark mode" />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="submit-btn" onClick={handleSave}>Lagre</button>
+                  <button className="btn btn-ghost" onClick={() => { setContactEmail(localStorage.getItem("contact_email") || ""); setContactPhone(localStorage.getItem("contact_phone") || ""); setDarkMode(localStorage.getItem("dark_mode") === "true"); }}>
+                    Avbryt
+                  </button>
+                </div>
+              </div>
+
+              <div className="dropdown-section" style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn" onClick={() => { setOpen(false); navigate("/account"); }}>Kontoinnstillinger</button>
                 <button className="btn btn-ghost" onClick={handleLogout}>Logg ut</button>
               </div>
             </div>

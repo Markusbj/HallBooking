@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function Home({ userEmail, isAdmin, onLogout, token: propToken }) {
+export default function Home(props) {
+  const { userEmail, isAdmin, onLogout, token: propToken } = props;
   const [myBookings, setMyBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -21,10 +22,7 @@ export default function Home({ userEmail, isAdmin, onLogout, token: propToken })
       const res = await fetch(`${API}/users/me/bookings`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => res.statusText);
-        throw new Error(txt || "Kunne ikke hente bookings");
-      }
+      if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
       const data = await res.json();
       setMyBookings(data.bookings || []);
     } catch (err) {
@@ -34,20 +32,8 @@ export default function Home({ userEmail, isAdmin, onLogout, token: propToken })
     }
   }
 
-  // logout håndteres av NavBar dropdown — bare send onLogout videre om den finnes
-  const handleLogout = () => {
-    if (onLogout) onLogout();
-    else {
-      localStorage.removeItem("token");
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("isAdmin");
-      window.location.href = "/login";
-    }
-  };
-
   return (
     <div className="home-container">
-      {/* Fjernet ekstra header — navbar viser merke og konto */}
       <main className="content" role="main">
         <section className="card">
           <h2>Velkommen</h2>
@@ -71,16 +57,12 @@ export default function Home({ userEmail, isAdmin, onLogout, token: propToken })
           {error && <div className="error-msg">{error}</div>}
           {!loading && myBookings.length === 0 && <div>Du har ingen kommende bookinger.</div>}
 
-          <ul style={{ listStyle: "none", padding: 0, marginTop: 12 }}>
+          <ul className="upcoming" style={{ marginTop: 12 }}>
             {myBookings
-              .map(b => ({
-                ...b,
-                start: b.start_time ? new Date(b.start_time) : null,
-                end: b.end_time ? new Date(b.end_time) : null,
-              }))
+              .map(b => ({ ...b, start: b.start_time ? new Date(b.start_time) : null, end: b.end_time ? new Date(b.end_time) : null }))
               .sort((a,b) => (a.start && b.start) ? a.start - b.start : 0)
               .map(b => (
-                <li key={b.id} style={{ marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <li key={b.id}>
                   <div>
                     <div style={{ fontWeight: 700 }}>{b.hall || "Ukjent sal"}</div>
                     <div style={{ color: "var(--muted)", fontSize: 13 }}>
@@ -96,8 +78,23 @@ export default function Home({ userEmail, isAdmin, onLogout, token: propToken })
         </section>
       </main>
 
-      <footer className="site-footer">
-        <small>© {new Date().getFullYear()} HallBooking — Tromsø</small>
+      <footer className="site-footer" aria-label="Bunntekst">
+        <div className="footer-inner container">
+          <small>© {new Date().getFullYear()} HallBooking — Tromsø</small>
+          <div className="social-links">
+            <a href="https://www.facebook.com/yourpage" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#1877F2" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 12.07C22 6.49 17.52 2 11.94 2S2 6.49 2 12.07c0 4.99 3.66 9.13 8.44 9.93v-7.03H8.03v-2.9h2.41V9.41c0-2.39 1.43-3.71 3.62-3.71 1.05 0 2.15.19 2.15.19v2.37h-1.21c-1.19 0-1.56.74-1.56 1.5v1.8h2.65l-.42 2.9h-2.23v7.03C18.34 21.2 22 17.06 22 12.07z"/>
+              </svg>
+            </a>
+
+            <a href="https://www.instagram.com/yourhandle" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#E4405F" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.2A3.8 3.8 0 1 0 15.8 12 3.8 3.8 0 0 0 12 8.2zm6.4-.7a1.12 1.12 0 1 0 1.12 1.12A1.12 1.12 0 0 0 18.4 7.5zM12 9.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );

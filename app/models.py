@@ -1,29 +1,32 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from .database import Base
-import uuid
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    # Arver id, email, hashed_password, is_active, is_superuser, is_verified
-    # Legg til egne felter om du vil:
+    """
+    Inherit the standard fastapi-users SQLAlchemy UUID user table.
+    Keep only custom/profile fields here.
+    """
+    __tablename__ = "users"
+
+    # custom profile fields
     full_name: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    name = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
 
+    # relationship to bookings
+    bookings = relationship("Booking", back_populates="user", cascade="all, delete-orphan")
 
+class Booking(Base):
+    __tablename__ = "bookings"
 
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    hall = Column(String, index=True, nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
 
-
-# class User(Base):
-#     __tablename__ = "users"
-#     id = Column(Integer, primary_key=True, index=True)
-#     username = Column(String, unique=True, index=True)
-#     hashed_password = Column(String)
-
-# class Booking(Base):
-#     __tablename__ = "bookings"
-#     id = Column(Integer, primary_key=True, index=True)
-#     user_id = Column(Integer, index=True)
-#     hall = Column(String)
-#     start_time = Column(DateTime)
-#     end_time = Column(DateTime)
+    user = relationship("User", back_populates="bookings")

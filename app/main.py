@@ -1,17 +1,19 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import logging
-import time
 from . import models, schemas, crud, database
-from .database import Base, engine
+from .database import Base, engine, get_db
 from .models import User
 from .schemas import UserRead, UserCreate, UserUpdate, BookingCreate
 from .auth import fastapi_users, auth_backend, current_active_user, create_db_and_tables
-
 from datetime import datetime, timedelta, date as date_type, timezone
 from typing import List, Dict, Any
+from pydantic import BaseModel
+from typing import Optional
+from sqlalchemy.orm import Session
 import uuid
+import logging
+import time
 
 # Sett opp logging
 logging.basicConfig(
@@ -218,3 +220,44 @@ async def get_my_bookings(user=Depends(current_active_user)):
                 "end_time": end,
             })
     return {"bookings": my}
+
+# Add/replace profile pydantic model and endpoints to use DB session
+class UserProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+@app.get("/users/me/profile")
+async def get_my_profile(user=Depends(current_active_user)):
+    """
+    Return current user's profile (email, name, phone).
+    """
+    return {
+        "email": getattr(user, "email", ""),
+        "name": getattr(user, "name", "") if hasattr(user, "name") else "",
+        "phone": getattr(user, "phone", "") if hasattr(user, "phone") else "",
+    }
+
+@app.put("/users/me/profile")
+async def update_my_profile(payload: UserProfileUpdate, db: Session = Depends(database.get_db), user=Depends(current_active_user)):
+    """
+    Update current user's profile and persist to DB via crud.update_user_profile.
+    """
+    data = payload.dict(exclude_unset=True)
+    # Use crud helper that persists changes
+    if hasattr(crud, "update_user_profile"):
+        updated = crud.update_user_profile(db, user.id, data)
+        if updated is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {
+            "ok": True,
+            "user": {
+                "email": getattr(updated, "email", ""),
+                "name": getattr(updated, "name", ""),
+                "phone": getattr(updated, "phone", ""),
+            },
+        }
+    # fallback: attempt shallow local update (non-persistent)
+    for k, v in data.items():
+        if hasattr(user, k):
+            setattr(user, k, v)
+    return {"ok": True, "user": {"email": getattr(user, "email", ""), "name": getattr(user, "name", ""), "phone": getattr(user, "phone", "")}}

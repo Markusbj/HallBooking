@@ -15,3 +15,20 @@ def create_booking(db: Session, booking: schemas.BookingCreate, user_id: int):
 
 def get_bookings(db: Session, skip=0, limit=10):
     return db.query(models.Booking).offset(skip).limit(limit).all()
+
+# --- NEW: update user profile helper ---
+def update_user_profile(db: Session, user_id, data: dict):
+    """
+    Update fields on models.User for given user_id and persist to DB.
+    Returns the updated user model or None if not found.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return None
+    for k, v in data.items():
+        if hasattr(user, k) and v is not None:
+            setattr(user, k, v)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
