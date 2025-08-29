@@ -1,113 +1,122 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function Login({ onLogin }) {
+export default function Login({ onSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  function formatErrorResponse(data, statusText) {
-    if (!data) return statusText || "Login failed";
-    if (typeof data.detail === "string") return data.detail;
-    if (Array.isArray(data)) {
-      return data
-        .map((err) =>
-          err.msg ? `${(err.loc || []).join(".")}: ${err.msg}` : JSON.stringify(err)
-        )
-        .join("; ");
+  const loginPaths = [
+    "/jwt/login",
+    "/auth/jwt/login", // fallback hvis du vil beholde gamle
+    "/auth/login",
+    "/auth/token",
+    "/token",
+    "/login"
+  ];
+
+  async function tryLogin(path) {
+    const url = `${API}${path}`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // non-OK -> return object indicating failure but include message
+        return { ok: false, status: res.status, message: data.detail || data.message || null };
+      }
+      // success - normalize token property names
+      const token = data.access_token || data.token || data.accessToken || data.access;
+      return { ok: true, data, token };
+    } catch (e) {
+      return { ok: false, error: e };
     }
-    if (Array.isArray(data.detail)) {
-      return data.detail
-        .map((err) => (err.msg ? `${(err.loc || []).join(".")}: ${err.msg}` : JSON.stringify(err)))
-        .join("; ");
-    }
-    return JSON.stringify(data);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError(null);
-
-    // send as application/x-www-form-urlencoded because fastapi-users expects form fields
-    const body = new URLSearchParams();
-    body.append("username", email);
-    body.append("password", password);
+    setError("");
+    setLoading(true);
 
     try {
-      const res = await fetch(`${API}/jwt/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-      });
-
-      if (!res.ok) {
-        let data = null;
-        try { data = await res.json(); } catch {}
-        throw new Error(formatErrorResponse(data, res.statusText));
-      }
-
-      const data = await res.json();
-      const token = data.access_token || data.token || data.accessToken || "";
-
-      // optionally fetch user info to determine admin flag
-      let isAdmin = false;
-      if (token) {
-        try {
-          const meRes = await fetch(`${API}/users/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (meRes.ok) {
-            const meData = await meRes.json();
-            isAdmin = Boolean(meData.is_superuser || meData.is_admin || false);
+      let result;
+      for (const p of loginPaths) {
+        result = await tryLogin(p);
+        if (result.ok) {
+          const token = result.token;
+          if (!token) {
+            // some backends return user object on login endpoint expecting form data; skip
+            continue;
           }
-        } catch {}
+          localStorage.setItem("token", token);
+          if (onSuccess) onSuccess(result.data);
+          navigate("/home", { replace: true });
+          return;
+        }
+        // if 404 or 405, try next; if other error with message, capture for feedback
       }
 
-      if (onLogin) onLogin(email, isAdmin, token);
-      else {
-        localStorage.setItem("token", token);
-        localStorage.setItem("userEmail", email);
-        localStorage.setItem("isAdmin", isAdmin ? "true" : "false");
-      }
-
-      navigate("/home", { replace: true });
-    } catch (err) {
-      setError(err.message || "Login failed");
+      // If we get here, no path succeeded
+      const msg = result && (result.message || (result.error && result.error.message)) ? (result.message || result.error.message) : "Innlogging mislyktes — sjekk backend-ruter";
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="center-container">
-      <div className="auth-box">
-        <h2>Logg inn</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>E-post</label>
+    <div className="auth-viewport">
+      <div className="auth-card">
+        <h2 className="auth-title">Logg inn</h2>
+
+        <form onSubmit={handleSubmit} className="auth-form" aria-label="login form">
+          <label className="auth-label">
+            E-post
             <input
+              className="auth-input"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              type="email"
               required
+              autoComplete="email"
             />
-          </div>
-          <div className="form-group">
-            <label>Passord</label>
+          </label>
+
+          <label className="auth-label">
+            Passord
             <input
+              className="auth-input"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              type="password"
               required
+              autoComplete="current-password"
             />
-          </div>
-          {error && <div className="error-msg">{error}</div>}
-          <button className="submit-btn" type="submit">Logg inn</button>
+          </label>
+
+          {error && <div className="auth-error" role="alert">{error}</div>}
+
+          <button className="btn btn-primary" type="submit" disabled={loading}>
+            {loading ? "Logger inn…" : "Logg inn"}
+          </button>
         </form>
-        <p style={{ marginTop: 12 }}>
-          Ikke registrert? <Link to="/register">Opprett konto</Link>
-        </p>
+
+        <div className="auth-help center">
+          <button className="link-btn" onClick={() => (window.location.href = "/forgot-password")}>
+            Glemt passord?
+          </button>
+          <span className="sep">•</span>
+          <button className="link-btn" onClick={() => (window.location.href = "/register")}>
+            Har du ikke bruker? Registrer
+          </button>
+        </div>
       </div>
     </div>
   );

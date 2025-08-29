@@ -1,5 +1,5 @@
-from pydantic import BaseModel, field_validator
-from datetime import datetime
+from pydantic import BaseModel, model_validator
+from datetime import datetime, time
 from typing import Optional
 from fastapi_users import schemas
 import uuid
@@ -19,10 +19,31 @@ class BookingCreate(BaseModel):
     start_time: datetime
     end_time: datetime
 
-    @field_validator("end_time")
-    @classmethod
-    def check_interval(cls, v, info):
-        start = info.data.get("start_time")
-        if start and v <= start:
-            raise ValueError("end_time må være etter start_time")
-        return v
+    @model_validator(mode="after")
+    def check_times_within_allowed_window(self):
+        start: datetime = self.start_time
+        end: datetime = self.end_time
+
+        if start is None or end is None:
+            raise ValueError("start_time and end_time are required")
+
+        # must be same calendar day
+        if start.date() != end.date():
+            raise ValueError("Booking must start and end on the same day")
+
+        if start >= end:
+            raise ValueError("start_time must be before end_time")
+
+        # allowed window: 17:00 .. 24:00 (midnight)
+        earliest = time(17, 0, 0)
+        latest = time(23, 59, 59, 999999)
+
+        s_time = start.timetz() if start.tzinfo else start.time()
+        e_time = end.timetz() if end.tzinfo else end.time()
+
+        if s_time < earliest:
+            raise ValueError("Bookings may not start before 17:00")
+        if e_time > latest:
+            raise ValueError("Bookings may not end after 24:00 (midnight)")
+
+        return self

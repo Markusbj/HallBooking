@@ -12,6 +12,7 @@ import "./components/NavBar.css";
 import "./components/Home.css";
 import "./components/Bookings.css";
 
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -21,9 +22,29 @@ function App() {
 
   useEffect(() => {
     const t = localStorage.getItem("token");
-    const email = localStorage.getItem("userEmail") || "";
-    const admin = localStorage.getItem("isAdmin") === "true";
-    if (t) { setIsLoggedIn(true); setToken(t); setUserEmail(email); setIsAdmin(admin); }
+    if (!t) { setIsLoggedIn(false); return; }
+
+    // Verifiser token mot backend
+    fetch(`${API}/users/me`, {
+      headers: { Authorization: `Bearer ${t}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("invalid token");
+        return res.json();
+      })
+      .then((user) => {
+        setIsLoggedIn(true);
+        setToken(t);
+        setUserEmail(user.email || "");
+        setIsAdmin(Boolean(user.is_superuser || user.is_admin));
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("isAdmin");
+        setIsLoggedIn(false);
+        setToken("");
+      });
   }, []);
 
   const handleLogin = (email, admin, tok) => {

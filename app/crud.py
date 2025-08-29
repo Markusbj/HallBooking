@@ -11,7 +11,7 @@ def create_booking(db: Session, booking: schemas.BookingCreate, user_id: int):
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
-    return db_booking
+    return db_booking  # return object so route can respond with created booking
 
 def get_bookings(db: Session, skip=0, limit=10):
     return db.query(models.Booking).offset(skip).limit(limit).all()

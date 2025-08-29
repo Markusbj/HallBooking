@@ -1,23 +1,19 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy.orm import relationship
 from .database import Base
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
 from sqlalchemy.dialects.postgresql import UUID
-import uuid
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    """
-    Inherit the standard fastapi-users SQLAlchemy UUID user table.
-    Keep only custom/profile fields here.
-    """
     __tablename__ = "users"
 
-    # custom profile fields
-    full_name: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    # restore full_name to match existing DB schema
+    full_name = Column(String, nullable=True)
+
+    # keep only profile fields that actually exist in your DB
     name = Column(String, nullable=True)
     phone = Column(String, nullable=True)
 
-    # relationship to bookings
     bookings = relationship("Booking", back_populates="user", cascade="all, delete-orphan")
 
 class Booking(Base):

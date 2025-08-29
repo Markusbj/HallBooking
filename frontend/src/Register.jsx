@@ -1,97 +1,91 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import logoImage from "./assets/logo.png";
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function Register() {
+export default function Register({ onRegistered }) {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [error, setError] = useState(null);
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  async function submit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setError(null);
+    setError("");
+    if (password !== confirm) {
+      setError("Passordene matcher ikke");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Passord må være minst 8 tegn");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const res = await fetch(`${API}/auth/register`, {
+      // Hvis backend bruker en annen register-path, oppdater denne til riktig path fra /docs
+      const registerPath = `${API}/auth/register`;
+      const res = await fetch(registerPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, full_name: fullName }),
       });
-      if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-      // if registration returns token, save and update profile
+
       const data = await res.json().catch(() => ({}));
-      if (data.access_token) {
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("userEmail", email);
-        // update profile
-        await fetch(`${API}/users/me/profile`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.access_token}` },
-          body: JSON.stringify({ name, phone }),
-        }).catch(() => null);
+      if (!res.ok) {
+        const msg = data.detail || data.message || `Server returnerte ${res.status}`;
+        throw new Error(msg);
       }
-      navigate("/login");
+
+      if (onRegistered) onRegistered(data);
+      navigate("/login"); // bruk react-router navigasjon
     } catch (err) {
-      setError(err.message || "Feil ved registrering");
+      setError(err.message || "Registrering feilet");
+      console.error("Register error:", err);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="auth-box">
-      <div className="logo">
-        <img src={logoImage} alt="HallBooking Logo" />
-      </div>
-      <div className="logo-subtitle">Administrasjonssystem</div>
+    <div className="auth-viewport">
+      <div className="auth-card">
+        <h2 className="auth-title">Opprett konto</h2>
 
-      <h2>Registrer ny bruker</h2>
-      <form onSubmit={submit}>
-        <div className="form-group">
-          <label>E-post</label>
-          <input
-            type="email"
-            name="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={loading}
-          />
-        </div>
-        <div className="form-group">
-          <label>Passord</label>
-          <input
-            type="password"
-            name="new-password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            disabled={loading}
-          />
-        </div>
-        <div className="form-group">
-          <label>Navn</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Telefon</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} />
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn" type="submit">
-            Registrer
+        <form onSubmit={handleSubmit} className="auth-form" aria-label="register form">
+          <label className="auth-label">
+            Navn
+            <input className="auth-input" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required autoComplete="name" />
+          </label>
+
+          <label className="auth-label">
+            E-post
+            <input className="auth-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+          </label>
+
+          <label className="auth-label">
+            Passord
+            <input className="auth-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+          </label>
+
+          <label className="auth-label">
+            Bekreft passord
+            <input className="auth-input" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8} autoComplete="new-password" />
+          </label>
+
+          {error && <div className="auth-error" role="alert">{error}</div>}
+
+          <button className="btn btn-primary" type="submit" disabled={loading}>
+            {loading ? "Oppretter konto…" : "Opprett konto"}
           </button>
-        </div>
-        {error && <div className="error-msg">{error}</div>}
-      </form>
+        </form>
 
-      <div className="auth-links">
-        <a href="/login" onClick={(e) => { e.preventDefault(); navigate("/login"); }}>
-          Allerede bruker? Logg inn her
-        </a>
+        <div className="auth-help center">
+          <span>Allerede registrert?</span>
+          <button className="link-btn" onClick={() => navigate("/login")}>Logg inn</button>
+        </div>
       </div>
     </div>
   );
