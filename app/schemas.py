@@ -48,3 +48,55 @@ class BookingCreate(BaseModel):
             raise ValueError("Bookings may not end after 24:00 (midnight)")
 
         return self
+
+class PageContentCreate(BaseModel):
+    page_name: str
+    section_name: str
+    content: str
+    content_type: str = "text"
+
+class PageContentUpdate(BaseModel):
+    content: str
+    content_type: str = "text"
+
+class PageContentRead(BaseModel):
+    id: str
+    page_name: str
+    section_name: str
+    content: str
+    content_type: str
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class BlockedTimeCreate(BaseModel):
+    block_type: str  # "day", "weekly", "hour"
+    start_date: datetime
+    end_date: datetime
+    hour: Optional[int] = None  # Hour to block (0-23) for single hour blocks
+    day_of_week: Optional[int] = None  # 0=Monday, 6=Sunday
+    reason: Optional[str] = None
+
+class BlockedTimeUpdate(BaseModel):
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    reason: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class BlockedTimeRead(BaseModel):
+    id: str
+    block_type: str
+    start_date: datetime
+    end_date: datetime
+    hour: Optional[int] = None
+    day_of_week: Optional[int] = None
+    reason: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    created_by: Optional[str] = None
+
+    class Config:
+        from_attributes = True

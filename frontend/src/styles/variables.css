@@ -15,7 +15,7 @@
   /* status colors */
   --free: #2ecc71;        /* grønn = ledig */
   --booked-color: #e74c3c;/* rød = opptatt */
-  --blocked-color: #7A8B6F;/* grå = blokkert */
+  --blocked-color: #ef4444;/* rød = blokkert */
 
   /* spacing / radius / shadow */
   --radius: 10px;

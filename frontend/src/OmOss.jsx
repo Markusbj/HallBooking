@@ -1,52 +1,52 @@
 import React from "react";
+import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 export default function OmOss() {
+  const { content, loading, error } = usePageContent("om-oss");
+
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="page-header">
+          <h1>Laster...</h1>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-container">
+        <div className="page-header">
+          <h1>Feil ved lasting av innhold</h1>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Om TG Tromsø</h1>
-        <p className="page-subtitle">Din lokale hundetrening-klubb i Tromsø</p>
+        <h1>{getContentValue(content, "pageTitle", "Om TG Tromsø")}</h1>
+        <p className="page-subtitle">{getContentValue(content, "pageSubtitle", "Din lokale hundetrening-klubb i Tromsø")}</p>
       </div>
 
       <div className="page-content">
         <section className="content-section">
-          <h2>Vår historie</h2>
-          <p>
-            TG Tromsø ble etablert i 2010 med mål om å tilby kvalitetshundetrening 
-            til alle hundeeiere i Tromsø-området. Vi har vokst fra en liten gruppe 
-            entusiaster til å bli en av byens ledende hundetrening-klubber.
-          </p>
-          <p>
-            Vår klubb er basert på positive treningsmetoder og fokus på både hundens 
-            og eierens trivsel. Vi tror på at god trening skaper sterke bånd mellom 
-            hund og eier.
-          </p>
+          <h2>{getContentValue(content, "aboutTitle", "Vår historie")}</h2>
+          <div dangerouslySetInnerHTML={{ __html: getContentValue(content, "aboutText1", "TG Tromsø ble etablert i 2010 med mål om å tilby kvalitetshundetrening til alle hundeeiere i Tromsø-området. Vi har vokst fra en liten gruppe entusiaster til å bli en av byens ledende hundetrening-klubber.") }}></div>
+          <div dangerouslySetInnerHTML={{ __html: getContentValue(content, "aboutText2", "Vår klubb er basert på positive treningsmetoder og fokus på både hundens og eierens trivsel. Vi tror på at god trening skaper sterke bånd mellom hund og eier.") }}></div>
         </section>
 
         <section className="content-section">
-          <h2>Våre verdier</h2>
-          <div className="values-grid">
-            <div className="value-card">
-              <div className="value-icon">🐕</div>
-              <h3>Hundens velferd</h3>
-              <p>Vi setter hundens fysiske og mentale velferd i sentrum for all trening.</p>
-            </div>
-            <div className="value-card">
-              <div className="value-icon">🤝</div>
-              <h3>Samarbeid</h3>
-              <p>Vi bygger sterke bånd mellom hund og eier gjennom positiv trening.</p>
-            </div>
-            <div className="value-card">
-              <div className="value-icon">📚</div>
-              <h3>Kunnskap</h3>
-              <p>Vi deler kunnskap og erfaring for å hjelpe alle hundeeiere.</p>
-            </div>
-            <div className="value-card">
-              <div className="value-icon">🏆</div>
-              <h3>Kvalitet</h3>
-              <p>Vi leverer høy kvalitet i all vår trening og instruksjon.</p>
-            </div>
-          </div>
+          <h2>{getContentValue(content, "historyTitle", "Vår historie")}</h2>
+          <div dangerouslySetInnerHTML={{ __html: getContentValue(content, "historyText", "TG Tromsø ble etablert i 2010 med mål om å tilby kvalitetshundetrening til alle hundeeiere i Tromsø-området. Vi har vokst fra en liten gruppe entusiaster til å bli en av byens ledende hundetrening-klubber.") }}></div>
+        </section>
+
+        <section className="content-section">
+          <h2>{getContentValue(content, "missionTitle", "Vår misjon")}</h2>
+          <div dangerouslySetInnerHTML={{ __html: getContentValue(content, "missionText", "Vår klubb er basert på positive treningsmetoder og fokus på både hundens og eierens trivsel. Vi tror på at god trening skaper sterke bånd mellom hund og eier.") }}></div>
         </section>
 
         <section className="content-section">

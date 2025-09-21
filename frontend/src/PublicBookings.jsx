@@ -10,8 +10,10 @@ function isoDate(d) {
 }
 function startOfWeek(date) {
   const d = new Date(date);
-  const day = (d.getDay() + 6) % 7; // Mon=0..Sun=6
-  d.setDate(d.getDate() - day);
+  const day = d.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+  // Calculate days to subtract to get to Monday
+  const daysToSubtract = day === 0 ? 6 : day - 1; // Sunday=6, Monday=0, Tuesday=1, etc.
+  d.setDate(d.getDate() - daysToSubtract);
   d.setHours(0,0,0,0);
   return d;
 }
@@ -111,7 +113,7 @@ export default function PublicBookings() {
               <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
             </svg>
           </button>
-          <button className="today-btn" onClick={() => setWeekStart(getMonday(new Date()))} title="Gå til denne uken">
+          <button className="today-btn" onClick={() => setWeekStart(startOfWeek(new Date()))} title="Gå til denne uken">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
             </svg>
@@ -156,8 +158,11 @@ export default function PublicBookings() {
                       <div
                         key={slot.hour}
                         className={`time-slot ${booked ? 'booked' : blocked ? 'blocked' : 'available'}`}
+                        style={blocked ? { 
+                          backgroundColor: '#ff4444'
+                        } : {}}
                         aria-label={`${day.date} ${pad(slot.hour)}:00`}
-                        title={booked ? `${slot.booking_ids.length} opptatt` : blocked ? "Blokkert" : "Ledig"}
+                        title={booked ? `${slot.booking_ids.length} opptatt` : blocked ? (slot.reason || "Blokkert") : "Ledig"}
                       >
                         <span className="time-text">{pad(slot.hour)}:00</span>
                         {booked && (

@@ -1,13 +1,36 @@
 import React from "react";
+import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 export default function Instruktorer() {
+  const { content, loading, error } = usePageContent("instruktorer");
+
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="page-header">
+          <h1>Laster...</h1>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-container">
+        <div className="page-header">
+          <h1>Feil ved lasting av innhold</h1>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
   const instructors = [
     {
-      name: "Anna Nordahl",
-      title: "Hovedinstruktør",
+      name: "Lisbeth Drotz",
+      title: "Instruktør",
       experience: "15 år",
-      specialties: ["Grunnleggende lydighet", "Agility", "Hundesport"],
-      description: "Anna har jobbet med hundetrening i over 15 år og er vår mest erfarne instruktør. Hun spesialiserer seg på grunnleggende lydighet og agility.",
+      specialties: ["Grunnleggende lydighet", "Spor", ],
+      description: "Lisbeth har deltat.",
       image: "👩‍🏫"
     },
     {
@@ -39,18 +62,14 @@ export default function Instruktorer() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Våre instruktører</h1>
-        <p className="page-subtitle">Møt vårt erfarne team av hundetreningsinstruktører</p>
+        <h1>{getContentValue(content, "pageTitle", "Våre instruktører")}</h1>
+        <p className="page-subtitle">{getContentValue(content, "pageSubtitle", "Møt vårt erfarne team av hundetreningsinstruktører")}</p>
       </div>
 
       <div className="page-content">
         <section className="content-section">
-          <h2>Vårt team</h2>
-          <p>
-            Våre instruktører har alle lang erfaring og er sertifisert innen hundetrening. 
-            Vi jobber kontinuerlig med å oppdatere vår kunnskap og følge de nyeste 
-            treningsmetodene.
-          </p>
+          <h2>{getContentValue(content, "instructorsTitle", "Vårt team")}</h2>
+          <p dangerouslySetInnerHTML={{ __html: getContentValue(content, "instructorsDescription", "Våre instruktører har alle lang erfaring og er sertifisert innen hundetrening. Vi jobber kontinuerlig med å oppdatere vår kunnskap og følge de nyeste treningsmetodene.") }}></p>
         </section>
 
         <div className="instructors-grid">

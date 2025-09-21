@@ -44,17 +44,19 @@
 .nav-brand-link { 
   pointer-events:auto; 
   display:inline-flex; 
-  gap:8px; 
+  gap:10px; 
   align-items:center; 
   text-decoration:none; 
   color:var(--text);
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
   transition: all 0.2s ease;
-  background: transparent;
-  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(216, 138, 68, 0.2);
   cursor: pointer;
   position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
 }
 
 .nav-brand-link::after {
@@ -68,32 +70,35 @@
 }
 
 .nav-brand-link:hover {
-  background: rgba(216, 138, 68, 0.1);
+  background: rgba(216, 138, 68, 0.15);
   border-color: var(--accent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(216, 138, 68, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(216, 138, 68, 0.3);
 }
 
 .nav-brand-link:hover::after {
   opacity: 1;
 }
 .nav-logo { 
-  width:36px; 
-  height:36px; 
-  border-radius:6px; 
+  width:40px; 
+  height:40px; 
+  border-radius:8px; 
   object-fit:cover; 
-  box-shadow:0 2px 6px rgba(0,0,0,0.06);
+  box-shadow:0 3px 10px rgba(0,0,0,0.12);
   transition: all 0.2s ease;
+  border: 2px solid rgba(216, 138, 68, 0.3);
 }
 
 .nav-brand-link:hover .nav-logo {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(216, 138, 68, 0.3);
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(216, 138, 68, 0.4);
+  border-color: var(--accent);
 }
 .nav-brand-text { 
   font-weight:800; 
-  font-size:16px;
+  font-size:18px;
   transition: all 0.2s ease;
+  letter-spacing: 0.5px;
 }
 
 .nav-brand-link:hover .nav-brand-text {

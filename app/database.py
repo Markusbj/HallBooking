@@ -27,6 +27,9 @@ except AttributeError:
 # Base for models
 Base = declarative_base()
 
+# Import all models to ensure they are registered
+from . import models
+
 # dependency for path operations that need a DB session
 async def get_db():
     async with AsyncSessionLocal() as session:

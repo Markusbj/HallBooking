@@ -145,8 +145,48 @@ def _require_admin(user):
     if not getattr(user, "is_superuser", False):
         raise HTTPException(status_code=403, detail="Administrator-tilgang kreves")
 
+async def _apply_blocked_times_to_slots(slots, target_date, db):
+    """Apply blocked times to calendar slots"""
+    blocked_times = await crud.get_blocked_times(db, target_date, target_date)
+    
+    for slot in slots:
+        slot_time = datetime(target_date.year, target_date.month, target_date.day, slot["hour"], 0, 0)
+        slot_end_time = slot_time + timedelta(hours=1)
+        
+        for blocked in blocked_times:
+            if blocked.block_type == "day":
+                # Block entire day
+                if (target_date >= blocked.start_date.date() and 
+                    target_date <= blocked.end_date.date()):
+                    slot["status"] = "blocked"
+                    slot["color"] = "#ff4444"
+                    slot["reason"] = blocked.reason or "Dag blokkert"
+                    break
+                    
+            elif blocked.block_type == "weekly":
+                # Block specific day of week
+                if (blocked.day_of_week is not None and
+                    target_date.weekday() == blocked.day_of_week and
+                    target_date >= blocked.start_date.date() and
+                    target_date <= blocked.end_date.date()):
+                    slot["status"] = "blocked"
+                    slot["color"] = "#ff4444"
+                    slot["reason"] = blocked.reason or "Ukedag blokkert"
+                    break
+                    
+            elif blocked.block_type == "hour":
+                # Block specific hour
+                if (blocked.hour is not None and
+                    slot["hour"] == blocked.hour and
+                    target_date >= blocked.start_date.date() and
+                    target_date <= blocked.end_date.date()):
+                    slot["status"] = "blocked"
+                    slot["color"] = "#ff4444"
+                    slot["reason"] = blocked.reason or "Time blokkert"
+                    break
+
 @app.get("/bookings/{target_date}")
-async def get_bookings_calendar(target_date: str):
+async def get_bookings_calendar(target_date: str, db: Session = Depends(database.get_db)):
     """
     Return a calendar view (hourly slots) for given date (YYYY-MM-DD).
     """
@@ -156,6 +196,10 @@ async def get_bookings_calendar(target_date: str):
         raise HTTPException(status_code=400, detail="target_date must be YYYY-MM-DD")
     slots = _hour_range_for_date(d)
     _apply_bookings_to_slots(slots)
+    
+    # Apply blocked times to slots
+    await _apply_blocked_times_to_slots(slots, d, db)
+    
     return {
         "date": d.isoformat(),
         "slots": slots,
@@ -163,12 +207,18 @@ async def get_bookings_calendar(target_date: str):
     }
 
 @app.post("/bookings")
-async def create_booking(booking: BookingCreate, user=Depends(current_active_user)):
+async def create_booking(booking: BookingCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
     booking_id = str(uuid.uuid4())
 
     # Normalize incoming datetimes to local naive before storing (prevents shift)
     start_local = _to_local_naive(booking.start_time)
     end_local = _to_local_naive(booking.end_time)
+
+    # Check if time is blocked
+    is_blocked, blocked_info = await crud.is_time_blocked(db, start_local, end_local)
+    if is_blocked:
+        reason = blocked_info.reason or "Tiden er blokkert"
+        raise HTTPException(status_code=400, detail=f"Kan ikke booke: {reason}")
 
     BOOKINGS[booking_id] = {
         "id": booking_id,
@@ -262,3 +312,85 @@ async def update_my_profile(payload: UserProfileUpdate, db: Session = Depends(da
         if hasattr(user, k):
             setattr(user, k, v)
     return {"ok": True, "user": {"email": getattr(user, "email", ""), "name": getattr(user, "name", ""), "phone": getattr(user, "phone", "")}}
+
+# Page Content API endpoints
+@app.get("/api/page-content/{page_name}")
+async def get_page_content_api(page_name: str, section_name: str = None, db: Session = Depends(database.get_db)):
+    """Get content for a specific page"""
+    content = await crud.get_page_content(db, page_name, section_name)
+    if section_name and content:
+        return content
+    elif not section_name and content:
+        return {"content": content}
+    else:
+        return {"content": []}
+
+@app.get("/api/page-content")
+async def get_all_page_content_api(db: Session = Depends(database.get_db)):
+    """Get all page content (admin only)"""
+    content = await crud.get_all_page_content(db)
+    return {"content": content}
+
+@app.post("/api/page-content")
+async def create_page_content_api(content: schemas.PageContentCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Create new page content (admin only)"""
+    _require_admin(user)
+    user_id = str(getattr(user, "id", ""))
+    new_content = await crud.create_page_content(db, content, user_id)
+    return new_content
+
+@app.put("/api/page-content/{content_id}")
+async def update_page_content_api(content_id: str, content: schemas.PageContentUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Update page content (admin only)"""
+    _require_admin(user)
+    user_id = str(getattr(user, "id", ""))
+    updated_content = await crud.update_page_content(db, content_id, content, user_id)
+    if not updated_content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    return updated_content
+
+@app.delete("/api/page-content/{content_id}")
+async def delete_page_content_api(content_id: str, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Delete page content (admin only)"""
+    _require_admin(user)
+    deleted_content = await crud.delete_page_content(db, content_id)
+    if not deleted_content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    return {"message": "Content deleted successfully"}
+
+# Blocked Time API endpoints
+@app.get("/api/blocked-times")
+async def get_blocked_times_api(start_date: str = None, end_date: str = None, db: Session = Depends(database.get_db)):
+    """Get blocked times (admin only)"""
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
+    
+    blocked_times = await crud.get_blocked_times(db, start_dt, end_dt)
+    return {"blocked_times": blocked_times}
+
+@app.post("/api/blocked-times")
+async def create_blocked_time_api(blocked_time: schemas.BlockedTimeCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Create blocked time (admin only)"""
+    _require_admin(user)
+    user_id = str(getattr(user, "id", ""))
+    new_blocked_time = await crud.create_blocked_time(db, blocked_time, user_id)
+    return new_blocked_time
+
+@app.put("/api/blocked-times/{blocked_time_id}")
+async def update_blocked_time_api(blocked_time_id: str, blocked_time: schemas.BlockedTimeUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Update blocked time (admin only)"""
+    _require_admin(user)
+    user_id = str(getattr(user, "id", ""))
+    updated_blocked_time = await crud.update_blocked_time(db, blocked_time_id, blocked_time, user_id)
+    if not updated_blocked_time:
+        raise HTTPException(status_code=404, detail="Blocked time not found")
+    return updated_blocked_time
+
+@app.delete("/api/blocked-times/{blocked_time_id}")
+async def delete_blocked_time_api(blocked_time_id: str, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Delete blocked time (admin only)"""
+    _require_admin(user)
+    deleted_blocked_time = await crud.delete_blocked_time(db, blocked_time_id)
+    if not deleted_blocked_time:
+        raise HTTPException(status_code=404, detail="Blocked time not found")
+    return {"message": "Blocked time deleted successfully"}

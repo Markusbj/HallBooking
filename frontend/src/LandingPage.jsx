@@ -1,15 +1,44 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 export default function LandingPage() {
   const isLoggedIn = !!localStorage.getItem("token");
+  const { content, loading, error } = usePageContent("landing");
+  
+  // Fallback content if database content is not available
+  const heroTitle = getContentValue(content, "hero_title", "Velkommen til TG Tromsø");
+  const heroSubtitle = getContentValue(content, "hero_subtitle", "Booking av hall og kurs til din hund");
+  const featuresTitle = getContentValue(content, "features_title", "Funksjoner");
+  const aboutTitle = getContentValue(content, "about_title", "Om TG Tromsø");
+  const aboutText1 = getContentValue(content, "about_text1", 
+    "TG Tromsø er din lokale hundetreningsklubb som tilbyr profesjonell opplæring og treningshaller for hunder og deres eiere. Med vårt system kan du enkelt se tilgjengelighet, booke treningshaller og melde deg på kurs.");
+  const aboutText2 = getContentValue(content, "about_text2", 
+    "Vi fokuserer på positiv hundetrening og skaper et trygt og lærerikt miljø for både hunder og eiere i Tromsø-området.");
+  const ctaTitle = getContentValue(content, "cta_title", "Kom i gang i dag");
+  const ctaText = getContentValue(content, "cta_text", "Registrer deg for å få tilgang til alle funksjonene i TG Tromsø");
+
+  if (loading) {
+    return (
+      <div className="landing-page">
+        <div className="hero-section">
+          <div className="hero-content">
+            <div style={{ textAlign: 'center', padding: '40px' }}>
+              <div>Laster innhold...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="landing-page">
       <div className="hero-section">
         <div className="hero-content">
-          <h1 className="hero-title">Velkommen til TG Tromsø</h1>
+          <h1 className="hero-title">{heroTitle}</h1>
           <p className="hero-subtitle">
-            Booking av hall og kurs til din hund
+            {heroSubtitle}
           </p>
           {!isLoggedIn && (
             <div className="hero-actions">
@@ -36,7 +65,7 @@ export default function LandingPage() {
 
       <div className="features-section">
         <div className="container">
-          <h2 className="section-title">Funksjoner</h2>
+          <h2 className="section-title">{featuresTitle}</h2>
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon">📅</div>
@@ -64,16 +93,13 @@ export default function LandingPage() {
 
       <div className="info-section">
         <div className="container">
-          <h2 className="section-title">Om TG Tromsø</h2>
+          <h2 className="section-title">{aboutTitle}</h2>
           <div className="info-content">
             <p>
-              TG Tromsø er din lokale hundetreningsklubb som tilbyr profesjonell opplæring 
-              og treningshaller for hunder og deres eiere. Med vårt system kan du enkelt 
-              se tilgjengelighet, booke treningshaller og melde deg på kurs.
+              {aboutText1}
             </p>
             <p>
-              Vi fokuserer på positiv hundetrening og skaper et trygt og lærerikt miljø 
-              for både hunder og eiere i Tromsø-området.
+              {aboutText2}
             </p>
           </div>
         </div>
@@ -81,9 +107,9 @@ export default function LandingPage() {
 
       <div className="cta-section">
         <div className="container">
-          <h2 className="section-title">Kom i gang i dag</h2>
+          <h2 className="section-title">{ctaTitle}</h2>
           <p className="cta-text">
-            Registrer deg for å få tilgang til alle funksjonene i TG Tromsø
+            {ctaText}
           </p>
           {!isLoggedIn && (
             <div className="cta-actions">

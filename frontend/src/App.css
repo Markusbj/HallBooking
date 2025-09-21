@@ -171,7 +171,7 @@ input[type="password"]:focus {
   /* statusfarger for kalender */
   --free: #2ecc71;         /* grønn = ledig */
   --booked-color: #e74c3c; /* rød = opptatt */
-  --blocked-color: #7A8B6F; /* grå = blokkert (admin) */
+  --blocked-color: #ef4444; /* rød = blokkert (admin) */
 }
 
 /* sikre god kontrast */
@@ -392,7 +392,7 @@ body {
 
 .slot-button.blocked,
 .slot-button.compact.blocked {
-  background: var(--blocked-color);
+  background: #ff4444 !important;
   color: #fff;
 }
 
