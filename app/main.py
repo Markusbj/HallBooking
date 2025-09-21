@@ -100,7 +100,8 @@ CALENDAR_COLORS = {
 
 def _hour_range_for_date(target_date: date_type) -> List[Dict[str, Any]]:
     slots = []
-    for h in range(24):
+    # Only show allowed booking hours: 17:00-23:00 (5 PM - 11 PM)
+    for h in range(17, 24):
         start = datetime(target_date.year, target_date.month, target_date.day, h, 0, 0)
         end = start + timedelta(hours=1)
         slots.append({
@@ -245,7 +246,7 @@ async def update_my_profile(payload: UserProfileUpdate, db: Session = Depends(da
     data = payload.dict(exclude_unset=True)
     # Use crud helper that persists changes
     if hasattr(crud, "update_user_profile"):
-        updated = crud.update_user_profile(db, user.id, data)
+        updated = await crud.update_user_profile(db, user.id, data)
         if updated is None:
             raise HTTPException(status_code=404, detail="User not found")
         return {

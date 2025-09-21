@@ -43,25 +43,18 @@ function inputToWeek(v) {
   return startOfWeek(target);
 }
 
-export default function Bookings({ token: propToken }) {
-  const token = propToken || localStorage.getItem("token") || "";
+export default function PublicBookings() {
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date()));
   const [days, setDays] = useState([]);
   const [colors, setColors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState(null); // {date, hour}
-  const [hall, setHall] = useState("Hovedsal");
   const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [isAdmin] = useState(localStorage.getItem("isAdmin") === "true");
   const [openDay, setOpenDay] = useState(null); // date string shown in top-left panel
 
   useEffect(() => { fetchWeek(); /* eslint-disable-next-line */ }, [weekStart]);
 
   async function fetchDay(dateStr) {
-    const res = await fetch(`${API}/bookings/${dateStr}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const res = await fetch(`${API}/bookings/${dateStr}`);
     if (!res.ok) throw new Error(`Kunne ikke hente ${dateStr}`);
     return res.json();
   }
@@ -99,46 +92,6 @@ export default function Bookings({ token: propToken }) {
 
   function onDayHeaderClick(date) {
     setOpenDay(openDay === date ? null : date);
-    setSelected(null);
-  }
-
-  function onSlotClick(slot, day) {
-    setSelected({ date: day.date, hour: slot.hour, slot });
-  }
-
-  async function createBooking() {
-    if (!selected) return;
-    setCreating(true); setError("");
-    const start = new Date(`${selected.date}T${pad(selected.hour)}:00:00`).toISOString();
-    const endDate = new Date(start); endDate.setHours(endDate.getHours() + 1);
-    const body = { hall: hall || "Hovedsal", start_time: start, end_time: endDate.toISOString() };
-    try {
-      const res = await fetch(`${API}/bookings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        let data = null; try { data = await res.json(); } catch {}
-        throw new Error((data && data.detail) ? JSON.stringify(data.detail) : res.statusText);
-      }
-      await fetchWeek(); setSelected(null);
-    } catch (err) {
-      console.error(err); setError(err.message || "Kunne ikke opprette booking");
-    } finally { setCreating(false); }
-  }
-
-  async function deleteBooking(bookingId) {
-    if (!isAdmin) { setError("Kun admin kan slette bookings"); return; }
-    if (!confirm("Slett denne bookingen?")) return;
-    try {
-      const res = await fetch(`${API}/bookings/${bookingId}`, {
-        method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error("Sletting feilet");
-      await fetchWeek(); setSelected(null);
-    } catch (err) { setError(err.message || "Kunne ikke slette"); }
   }
 
   const weekEnd = new Date(weekStart); 
@@ -199,15 +152,10 @@ export default function Bookings({ token: propToken }) {
                   {day.slots.map((slot) => {
                     const booked = slot.status === "booked" && slot.booking_ids && slot.booking_ids.length > 0;
                     const blocked = slot.status === "blocked";
-                    const isSelected = selected && selected.date === day.date && selected.hour === slot.hour;
                     return (
-                      <button
+                      <div
                         key={slot.hour}
-                        className={`time-slot ${booked ? 'booked' : blocked ? 'blocked' : 'available'} ${isSelected ? 'selected' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSlotClick(slot, day);
-                        }}
+                        className={`time-slot ${booked ? 'booked' : blocked ? 'blocked' : 'available'}`}
                         aria-label={`${day.date} ${pad(slot.hour)}:00`}
                         title={booked ? `${slot.booking_ids.length} opptatt` : blocked ? "Blokkert" : "Ledig"}
                       >
@@ -215,7 +163,7 @@ export default function Bookings({ token: propToken }) {
                         {booked && (
                           <span className="booking-count">{slot.booking_ids.length}</span>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -226,66 +174,12 @@ export default function Bookings({ token: propToken }) {
 
         <aside className="booking-panel">
           <div className="panel-section">
-            <h3>Booking</h3>
-            {selected ? (
-              <div className="selected-time">
-                <div className="time-info">
-                  <div className="time-date">{new Date(selected.date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</div>
-                  <div className="time-range">{pad(selected.hour)}:00 — {pad((selected.hour+1)%24)}:00</div>
-                </div>
-              </div>
-            ) : (
-              <div className="no-selection">
-                <p>Velg en tid i kalenderen for å booke</p>
-              </div>
-            )}
+            <h3>Informasjon</h3>
+            <div className="info-card">
+              <p>Dette er en offentlig visning av tilgjengelige treningshaller.</p>
+              <p>For å booke treningshall må du logge inn.</p>
+            </div>
           </div>
-
-          {selected && (
-            <div className="panel-section">
-              <label className="form-label">Treningshall</label>
-              <input 
-                value={hall} 
-                onChange={(e)=>setHall(e.target.value)} 
-                className="form-input"
-                placeholder="F.eks. Hovedhallen"
-              />
-            </div>
-          )}
-
-          {selected && selected.slot && selected.slot.booking_ids && selected.slot.booking_ids.length > 0 ? (
-            <div className="panel-section">
-              <h4>Eksisterende bookinger</h4>
-              <div className="booking-list">
-                {selected.slot.booking_ids.map(id => (
-                  <div key={id} className="booking-item">
-                    <span className="booking-id">{id}</span>
-                    {isAdmin && (
-                      <button 
-                        className="delete-btn" 
-                        onClick={() => deleteBooking(id)}
-                        title="Slett booking"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : selected ? (
-            <div className="panel-section">
-              <button 
-                className="book-btn" 
-                onClick={createBooking} 
-                disabled={creating || !selected}
-              >
-                {creating ? "Oppretter..." : "Book treningshall"}
-              </button>
-            </div>
-          ) : null}
 
           <div className="panel-section">
             <h4>Status</h4>
@@ -301,6 +195,17 @@ export default function Bookings({ token: propToken }) {
               <div className="legend-item">
                 <div className="legend-color blocked"></div>
                 <span>Blokkert</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel-section">
+            <div className="cta-card">
+              <h4>Vil du booke treningshall?</h4>
+              <p>Logg inn for å få tilgang til booking-funksjoner.</p>
+              <div className="cta-buttons">
+                <a href="/login" className="btn btn-primary">Logg inn</a>
+                <a href="/register" className="btn btn-secondary">Registrer</a>
               </div>
             </div>
           </div>
@@ -320,14 +225,13 @@ export default function Bookings({ token: propToken }) {
               const blocked = slot.status === "blocked";
               const cls = booked ? "booked" : blocked ? "blocked" : "empty";
               return (
-                <button
+                <div
                   key={slot.hour}
-                  className={`slot-button daypanel ${cls} ${selected && selected.date === openDay && selected.hour === slot.hour ? "selected" : ""}`}
-                  onClick={() => setSelected({ date: openDay, hour: slot.hour, slot })}
+                  className={`slot-button daypanel ${cls}`}
                 >
                   <div className="slot-hour">{pad(slot.hour)}:00</div>
                   <div className="slot-meta">{booked ? `${slot.booking_ids.length} opptatt` : blocked ? "Blokkert" : "Ledig"}</div>
-                </button>
+                </div>
               );
             })}
           </div>

@@ -38,8 +38,9 @@ class BookingCreate(BaseModel):
         earliest = time(17, 0, 0)
         latest = time(23, 59, 59, 999999)
 
-        s_time = start.timetz() if start.tzinfo else start.time()
-        e_time = end.timetz() if end.tzinfo else end.time()
+        # Convert to naive time objects for comparison
+        s_time = start.time() if start.tzinfo is None else start.astimezone().time()
+        e_time = end.time() if end.tzinfo is None else end.astimezone().time()
 
         if s_time < earliest:
             raise ValueError("Bookings may not start before 17:00")

@@ -61,7 +61,7 @@ async def get_user_manager(user_db=Depends(get_user_db)):
 
 # ---- Auth backend (JWT) ----
 # VIKTIG: tokenUrl skal være relativ til root
-bearer_transport = BearerTransport(tokenUrl="/jwt/login")
+bearer_transport = BearerTransport(tokenUrl="/auth/jwt/login")
 
 def get_jwt_strategy() -> JWTStrategy:
     logger.debug("Creating JWT strategy")

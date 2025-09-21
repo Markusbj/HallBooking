@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function Login({ onSuccess }) {
+export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -11,8 +11,8 @@ export default function Login({ onSuccess }) {
   const navigate = useNavigate();
 
   const loginPaths = [
+    "/auth/jwt/login", // Correct FastAPI Users endpoint
     "/jwt/login",
-    "/auth/jwt/login", // fallback hvis du vil beholde gamle
     "/auth/login",
     "/auth/token",
     "/token",
@@ -22,10 +22,15 @@ export default function Login({ onSuccess }) {
   async function tryLogin(path) {
     const url = `${API}${path}`;
     try {
+      // Create form data for FastAPI Users authentication
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+      
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: email, password }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -56,7 +61,26 @@ export default function Login({ onSuccess }) {
             continue;
           }
           localStorage.setItem("token", token);
-          if (onSuccess) onSuccess(result.data);
+          
+          // Fetch user info after successful login
+          try {
+            const userRes = await fetch(`${API}/users/me`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (userRes.ok) {
+              const userData = await userRes.json();
+              if (onLogin) {
+                onLogin(userData.email, userData.is_superuser, token);
+              }
+            } else {
+              // Fallback if user info fetch fails
+              if (onLogin) onLogin(email, false, token);
+            }
+          } catch (err) {
+            // Fallback if user info fetch fails
+            if (onLogin) onLogin(email, false, token);
+          }
+          
           navigate("/home", { replace: true });
           return;
         }

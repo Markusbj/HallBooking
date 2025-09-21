@@ -1,0 +1,425 @@
+@import "../styles/variables.css";
+@import "../styles/global.css";
+
+/* Page container */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: calc(var(--navbar-height) + 24px) 24px 24px 24px;
+  min-height: 100vh;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 48px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--accent);
+}
+
+.page-header h1 {
+  font-size: 2.5rem;
+  margin: 0 0 16px 0;
+  color: var(--text);
+}
+
+.page-subtitle {
+  font-size: 1.2rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.content-section {
+  background: var(--surface);
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.content-section h2 {
+  color: var(--text);
+  margin: 0 0 24px 0;
+  font-size: 1.8rem;
+}
+
+.content-section h3 {
+  color: var(--text);
+  margin: 0 0 16px 0;
+  font-size: 1.4rem;
+}
+
+.content-section p {
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+}
+
+/* Values grid */
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.value-card {
+  text-align: center;
+  padding: 24px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--accent-2);
+}
+
+.value-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.value-card h3 {
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
+.value-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Services list */
+.services-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.service-item {
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border-left: 4px solid var(--accent);
+}
+
+.service-item h3 {
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
+.service-item p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Facilities list */
+.facilities-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0 0;
+}
+
+.facilities-list li {
+  padding: 8px 0;
+  color: var(--text);
+  position: relative;
+  padding-left: 24px;
+}
+
+.facilities-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* Instructors grid */
+.instructors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.instructor-card {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--accent-2);
+}
+
+.instructor-image {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.instructor-emoji {
+  font-size: 4rem;
+  display: inline-block;
+}
+
+.instructor-info h3 {
+  margin: 0 0 8px 0;
+  color: var(--text);
+  font-size: 1.4rem;
+}
+
+.instructor-title {
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.instructor-experience {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 16px 0;
+}
+
+.instructor-description {
+  color: var(--text);
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.instructor-specialties h4 {
+  margin: 0 0 12px 0;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.specialties-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.specialty-tag {
+  background: var(--accent);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Qualifications */
+.qualifications {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.qualification-item {
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--accent-2);
+}
+
+.qualification-item h3 {
+  margin: 0 0 8px 0;
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.qualification-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Contact grid */
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 48px;
+}
+
+.contact-info h2 {
+  margin: 0 0 32px 0;
+  color: var(--text);
+}
+
+.contact-item {
+  margin-bottom: 32px;
+}
+
+.contact-item h3 {
+  margin: 0 0 12px 0;
+  color: var(--text);
+  font-size: 1.2rem;
+}
+
+.contact-item p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.contact-item a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.contact-item a:hover {
+  text-decoration: underline;
+}
+
+.opening-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hours-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text);
+}
+
+.social-links {
+  display: flex;
+  gap: 16px;
+}
+
+.social-links a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.social-links a:hover {
+  text-decoration: underline;
+}
+
+/* Contact form */
+.contact-form-section h2 {
+  margin: 0 0 24px 0;
+  color: var(--text);
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.form-input {
+  padding: 12px;
+  border: 2px solid var(--accent-2);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  color: var(--text);
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(216, 138, 68, 0.1);
+}
+
+.form-input::placeholder {
+  color: var(--muted);
+}
+
+/* Map placeholder */
+.map-placeholder {
+  background: var(--bg-secondary);
+  border: 2px dashed var(--accent-2);
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.map-content h3 {
+  margin: 0 0 8px 0;
+  color: var(--text);
+}
+
+.map-content p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* CTA section */
+.cta-section {
+  text-align: center;
+  margin-top: 32px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .page-container {
+    padding: calc(var(--navbar-height) + 16px) 16px 16px 16px;
+  }
+  
+  .page-header h1 {
+    font-size: 2rem;
+  }
+  
+  .content-section {
+    padding: 24px;
+  }
+  
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  
+  .instructors-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .values-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .services-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .qualifications {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .content-section {
+    padding: 16px;
+  }
+  
+  .instructor-card {
+    padding: 16px;
+  }
+  
+  .specialties-tags {
+    flex-direction: column;
+  }
+}

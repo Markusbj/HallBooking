@@ -3,14 +3,22 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./Login";
 import Register from "./Register";
 import Home from "./Home";
+import Oversikt from "./Oversikt";
 import Bookings from "./Bookings";
+import PublicBookings from "./PublicBookings";
+import LandingPage from "./LandingPage";
 import AdminPanel from "./AdminPanel";
 import NavBar from "./NavBar";
 import Account from "./Account";
+import OmOss from "./OmOss";
+import Instruktorer from "./Instruktorer";
+import Kontakt from "./Kontakt";
 import "./styles/global.css";
 import "./components/NavBar.css";
 import "./components/Home.css";
 import "./components/Bookings.css";
+import "./components/LandingPage.css";
+import "./components/Pages.css";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -51,13 +59,16 @@ function App() {
     localStorage.setItem("token", tok);
     localStorage.setItem("userEmail", email || "");
     localStorage.setItem("isAdmin", admin ? "true" : "false");
-    setIsLoggedIn(true); setUserEmail(email||""); setIsAdmin(Boolean(admin)); setToken(tok);
+    setIsLoggedIn(true); 
+    setUserEmail(email || ""); 
+    setIsAdmin(Boolean(admin)); 
+    setToken(tok);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token"); localStorage.removeItem("userEmail"); localStorage.removeItem("isAdmin");
     setIsLoggedIn(false); setUserEmail(""); setIsAdmin(false); setToken("");
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   return (
@@ -65,12 +76,16 @@ function App() {
       <NavBar />
       <div className="app-content">
         <Routes>
-          <Route path="/" element={isLoggedIn ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} />
-          <Route path="/login" element={isLoggedIn ? <Navigate to="/home" replace /> : <Login onLogin={handleLogin} />} />
-          <Route path="/register" element={isLoggedIn ? <Navigate to="/home" replace /> : <Register />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={isLoggedIn ? <Navigate to="/oversikt" replace /> : <Login onLogin={handleLogin} />} />
+          <Route path="/register" element={isLoggedIn ? <Navigate to="/oversikt" replace /> : <Register />} />
+          <Route path="/oversikt" element={isLoggedIn ? <Oversikt userEmail={userEmail} isAdmin={isAdmin} onLogout={handleLogout} token={token} /> : <Navigate to="/login" replace />} />
           <Route path="/home" element={isLoggedIn ? <Home userEmail={userEmail} isAdmin={isAdmin} onLogout={handleLogout} token={token} /> : <Navigate to="/login" replace />} />
-          <Route path="/bookings" element={isLoggedIn ? <Bookings token={token} /> : <Navigate to="/login" replace />} />
-          <Route path="/admin" element={isLoggedIn ? <AdminPanel token={token} /> : <Navigate to="/login" replace />} />
+          <Route path="/bookings" element={isLoggedIn ? <Bookings token={token} /> : <PublicBookings />} />
+          <Route path="/om-oss" element={<OmOss />} />
+          <Route path="/instruktorer" element={<Instruktorer />} />
+          <Route path="/kontakt" element={<Kontakt />} />
+          <Route path="/admin" element={isLoggedIn && isAdmin ? <AdminPanel token={token} /> : <Navigate to="/" replace />} />
           <Route path="/account" element={isLoggedIn ? <Account token={token} /> : <Navigate to="/login" replace />} />
         </Routes>
       </div>
