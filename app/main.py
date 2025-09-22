@@ -230,17 +230,85 @@ async def create_booking(booking: BookingCreate, user=Depends(current_active_use
     logger.info(f"Created booking {booking_id} by user {getattr(user, 'id', None)}")
     return {"id": booking_id, "msg": "Booking opprettet"}
 
+@app.get("/bookings/{booking_id}")
+async def get_booking(booking_id: str, user=Depends(current_active_user)):
+    """Get a specific booking by ID"""
+    _require_admin(user)
+    if booking_id not in BOOKINGS:
+        raise HTTPException(status_code=404, detail="Booking ikke funnet")
+    
+    booking = BOOKINGS[booking_id]
+    return {
+        "id": booking["id"],
+        "hall": booking.get("hall"),
+        "start_time": booking["start_time"].isoformat() if isinstance(booking["start_time"], datetime) else str(booking["start_time"]),
+        "end_time": booking["end_time"].isoformat() if isinstance(booking["end_time"], datetime) else str(booking["end_time"]),
+        "created_by": booking.get("created_by"),
+        "created_at": booking.get("created_at", booking["start_time"])
+    }
+
 @app.put("/bookings/{booking_id}")
 async def update_booking(booking_id: str, payload: BookingCreate, user=Depends(current_active_user)):
     _require_admin(user)
     if booking_id not in BOOKINGS:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
+    
+    # Normalize incoming datetimes to local naive before storing
+    start_local = _to_local_naive(payload.start_time)
+    end_local = _to_local_naive(payload.end_time)
+    
+    # Check if time is blocked
+    is_blocked, blocked_info = await crud.is_time_blocked(db, start_local, end_local)
+    if is_blocked:
+        reason = blocked_info.reason or "Tiden er blokkert"
+        raise HTTPException(status_code=400, detail=f"Kan ikke oppdatere booking: {reason}")
+    
     BOOKINGS[booking_id].update({
         "hall": payload.hall,
-        "start_time": payload.start_time,
-        "end_time": payload.end_time,
+        "start_time": start_local,
+        "end_time": end_local,
     })
     logger.info(f"Booking {booking_id} oppdatert av admin {getattr(user, 'id', None)}")
+    return {"id": booking_id, "msg": "Booking oppdatert"}
+
+class BookingUpdate(BaseModel):
+    hall: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+
+@app.patch("/bookings/{booking_id}")
+async def partial_update_booking(booking_id: str, payload: BookingUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Partially update a booking (admin only)"""
+    _require_admin(user)
+    if booking_id not in BOOKINGS:
+        raise HTTPException(status_code=404, detail="Booking ikke funnet")
+    
+    booking = BOOKINGS[booking_id]
+    updates = {}
+    
+    if payload.hall is not None:
+        updates["hall"] = payload.hall
+    
+    if payload.start_time is not None:
+        start_local = _to_local_naive(payload.start_time)
+        updates["start_time"] = start_local
+    
+    if payload.end_time is not None:
+        end_local = _to_local_naive(payload.end_time)
+        updates["end_time"] = end_local
+    
+    # If we're updating times, check if the new time is blocked
+    if payload.start_time is not None or payload.end_time is not None:
+        start_time = updates.get("start_time", booking["start_time"])
+        end_time = updates.get("end_time", booking["end_time"])
+        
+        is_blocked, blocked_info = await crud.is_time_blocked(db, start_time, end_time)
+        if is_blocked:
+            reason = blocked_info.reason or "Tiden er blokkert"
+            raise HTTPException(status_code=400, detail=f"Kan ikke oppdatere booking: {reason}")
+    
+    booking.update(updates)
+    logger.info(f"Booking {booking_id} delvis oppdatert av admin {getattr(user, 'id', None)}")
     return {"id": booking_id, "msg": "Booking oppdatert"}
 
 @app.delete("/bookings/{booking_id}")

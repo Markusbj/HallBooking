@@ -24,6 +24,12 @@ function AdminPanel() {
     role: '',
     status: ''
   });
+  const [editingBooking, setEditingBooking] = useState(null);
+  const [bookingEditForm, setBookingEditForm] = useState({
+    hall: '',
+    start_time: '',
+    end_time: ''
+  });
 
   useEffect(() => {
     if (activeTab === 'content') {
@@ -256,6 +262,56 @@ function AdminPanel() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const editBooking = async (booking) => {
+    setEditingBooking(booking);
+    setBookingEditForm({
+      hall: booking.hall || '',
+      start_time: booking.start_time ? new Date(booking.start_time).toISOString().slice(0, 16) : '',
+      end_time: booking.end_time ? new Date(booking.end_time).toISOString().slice(0, 16) : ''
+    });
+  };
+
+  const saveBookingEdit = async () => {
+    if (!editingBooking) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/bookings/${editingBooking.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          hall: bookingEditForm.hall,
+          start_time: bookingEditForm.start_time,
+          end_time: bookingEditForm.end_time
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Kunne ikke oppdatere booking');
+      }
+      
+      // Refresh bookings
+      await fetchBookings();
+      setEditingBooking(null);
+      setBookingEditForm({ hall: '', start_time: '', end_time: '' });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelBookingEdit = () => {
+    setEditingBooking(null);
+    setBookingEditForm({ hall: '', start_time: '', end_time: '' });
   };
 
   const deleteBooking = async (bookingId) => {
@@ -911,6 +967,13 @@ function AdminPanel() {
                   </div>
                   <div className="booking-actions">
                     <button
+                      className="btn btn-sm btn-outline"
+                      onClick={() => editBooking(booking)}
+                      title="Rediger booking"
+                    >
+                      Rediger
+                    </button>
+                    <button
                       className="btn btn-sm btn-danger"
                       onClick={() => deleteBooking(booking.id)}
                       title="Slett booking"
@@ -963,6 +1026,57 @@ function AdminPanel() {
                 <button type="button" className="btn btn-ghost" onClick={() => setEditingContent(null)}>Avbryt</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Edit Modal */}
+      {editingBooking && (
+        <div className="booking-edit-modal">
+          <div className="modal-overlay" onClick={cancelBookingEdit}></div>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Rediger booking</h3>
+              <button className="modal-close" onClick={cancelBookingEdit}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Hall:</label>
+                <select
+                  value={bookingEditForm.hall}
+                  onChange={(e) => setBookingEditForm({...bookingEditForm, hall: e.target.value})}
+                >
+                  <option value="">Velg hall</option>
+                  <option value="Hovedhall">Hovedhall</option>
+                  <option value="Sidehall">Sidehall</option>
+                  <option value="Utendørs">Utendørs</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Starttid:</label>
+                <input
+                  type="datetime-local"
+                  value={bookingEditForm.start_time}
+                  onChange={(e) => setBookingEditForm({...bookingEditForm, start_time: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Sluttid:</label>
+                <input
+                  type="datetime-local"
+                  value={bookingEditForm.end_time}
+                  onChange={(e) => setBookingEditForm({...bookingEditForm, end_time: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={cancelBookingEdit}>
+                Avbryt
+              </button>
+              <button className="btn btn-primary" onClick={saveBookingEdit} disabled={loading}>
+                {loading ? 'Lagrer...' : 'Lagre endringer'}
+              </button>
+            </div>
           </div>
         </div>
       )}
