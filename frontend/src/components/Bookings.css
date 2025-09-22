@@ -9,6 +9,7 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   position: relative;
+  overflow: visible;
 }
 
 .bookings-container::before {
@@ -45,6 +46,8 @@
     0 8px 32px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 1;
 }
 
 .bookings-header:hover {
@@ -58,6 +61,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  position: relative;
+  z-index: 2;
 }
 
 .nav-btn {
@@ -193,26 +198,31 @@
   font-weight: 500;
 }
 
-.week-details {
+/* Removed old week-details styling */
+
+.week-details-btn {
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 14px;
-}
-
-.week-number {
-  background: linear-gradient(135deg, var(--accent) 0%, #e67e22 100%);
+  gap: 6px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   color: white;
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 14px;
-  box-shadow: 0 4px 12px rgba(216, 138, 68, 0.3);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 
+    0 4px 16px rgba(59, 130, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   position: relative;
   overflow: hidden;
+  min-width: 140px;
+  justify-content: center;
 }
 
-.week-number::before {
+.week-details-btn::before {
   content: '';
   position: absolute;
   top: 0;
@@ -223,15 +233,198 @@
   transition: left 0.5s;
 }
 
-.week-number:hover::before {
+.week-details-btn:hover::before {
   left: 100%;
 }
 
-.year {
-  color: #64748b;
-  font-weight: 600;
-  font-size: 16px;
+.week-details-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 8px 25px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
+
+.week-details-btn:active {
+  transform: translateY(-1px) scale(1.01);
+}
+
+.week-details-btn .week-number {
+  background: none;
+  color: white;
+  padding: 0;
+  border-radius: 0;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: none;
+  position: static;
+  overflow: visible;
+}
+
+.week-details-btn .week-number::before {
+  display: none;
+}
+
+.week-details-btn .year {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.week-details-btn .calendar-icon {
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  display: block;
+}
+
+.week-details-btn:hover .calendar-icon {
+  color: white;
+  transform: scale(1.1);
+}
+
+.dropdown-arrow {
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.week-details-btn:hover .dropdown-arrow {
+  color: white;
+  transform: rotate(180deg);
+}
+
+/* Week Selector Dropdown */
+.week-selector-container {
+  position: relative;
+  z-index: 10;
+}
+
+.week-selector-dropdown {
+  background: white !important;
+  border-radius: 12px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.1);
+  border: 2px solid #3b82f6 !important;
+  max-height: 300px;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  min-width: 200px;
+  max-width: 300px;
+  position: fixed !important;
+  z-index: 999999 !important;
+}
+
+.week-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--text);
+}
+
+.week-options {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.week-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.week-option:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+  color: #1d4ed8;
+}
+
+.week-option.current {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  font-weight: 600;
+}
+
+.week-option.current:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+}
+
+.week-option.past {
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.week-option.past:hover {
+  background: none;
+  color: #9ca3af;
+}
+
+.week-label {
+  font-weight: 500;
+}
+
+.current-indicator {
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Scrollbar styling for week options */
+.week-options::-webkit-scrollbar {
+  width: 6px;
+}
+
+.week-options::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.week-options::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.week-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Removed old week-number and year styling - now handled by week-details-btn */
 
 /* Content layout */
 .bookings-content {
@@ -249,12 +442,12 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 24px;
-  margin-bottom: 40px;
+  gap: 16px;
+  margin-bottom: 32px;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 20px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 16px;
   position: relative;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -334,7 +527,7 @@
 .day-header {
   background: linear-gradient(135deg, var(--accent) 0%, #e67e22 100%);
   color: white;
-  padding: 20px 16px;
+  padding: 14px 12px;
   text-align: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -358,23 +551,24 @@
 
 .day-name {
   font-weight: 800;
-  font-size: 16px;
-  margin-bottom: 6px;
+  font-size: 14px;
+  margin-bottom: 4px;
   letter-spacing: 0.02em;
 }
 
 .day-date {
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.95;
   font-weight: 600;
 }
 
 /* Time slots */
 .time-slots {
-  padding: 20px;
+  padding: 16px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
 .time-slot {
@@ -382,17 +576,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 16px;
+  padding: 14px 8px;
   border: 2px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 700;
-  font-size: 15px;
-  min-height: 80px;
+  font-size: 14px;
+  min-height: 65px;
   position: relative;
   backdrop-filter: blur(10px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 0;
+  flex: 1;
 }
 
 .time-slot.available {
@@ -470,27 +666,30 @@
 
 .time-text {
   font-weight: 800;
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: 0.02em;
   z-index: 3;
   position: relative;
-  margin-bottom: 8px;
-  line-height: 1.2;
+  margin-bottom: 6px;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-align: center;
+  width: 100%;
 }
 
 .booking-count {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 4px;
+  right: 4px;
   background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 100%);
   color: white;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   z-index: 4;
@@ -499,11 +698,11 @@
 
 /* Alternative positioning for booked slots */
 .time-slot.booked .booking-count {
-  top: 4px;
-  right: 4px;
-  width: 18px;
-  height: 18px;
-  font-size: 9px;
+  top: 3px;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  font-size: 8px;
 }
 
 /* Booking panel */
@@ -800,7 +999,7 @@
   }
   
   .calendar-grid {
-    gap: 20px;
+    gap: 14px;
   }
 }
 
@@ -810,7 +1009,7 @@
   }
   
   .calendar-grid {
-    gap: 18px;
+    gap: 12px;
   }
   
   .booking-panel {
@@ -821,7 +1020,7 @@
 @media (max-width: 1200px) {
   .calendar-grid {
     grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
+    gap: 12px;
   }
   
   .booking-panel {
@@ -829,15 +1028,15 @@
   }
   
   .time-slot {
-    min-height: 75px;
-    padding: 18px 14px;
+    min-height: 60px;
+    padding: 12px 10px;
   }
 }
 
 @media (max-width: 900px) {
   .calendar-grid {
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: 12px;
   }
   
   .bookings-content {
@@ -878,13 +1077,13 @@
   }
   
   .time-slot {
-    min-height: 70px;
-    padding: 16px 12px;
-    font-size: 14px;
+    min-height: 55px;
+    padding: 12px 10px;
+    font-size: 13px;
   }
   
   .time-text {
-    font-size: 15px;
+    font-size: 14px;
   }
 }
 

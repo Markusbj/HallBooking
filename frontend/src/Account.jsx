@@ -6,17 +6,34 @@ export default function Account() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [profile, setProfile] = useState({ email: "", name: "", phone: "" });
+  const [success, setSuccess] = useState(false);
+  const [profile, setProfile] = useState({ 
+    email: "", 
+    full_name: "", 
+    phone: "",
+    is_superuser: false,
+    is_verified: false,
+    is_active: true
+  });
   const token = localStorage.getItem("token") || "";
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`${API}/users/me/profile`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const res = await fetch(`${API}/users/me`, { 
+          headers: token ? { Authorization: `Bearer ${token}` } : {} 
+        });
         if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
         const data = await res.json();
-        setProfile({ email: data.email || "", name: data.name || "", phone: data.phone || "" });
+        setProfile({ 
+          email: data.email || "", 
+          full_name: data.full_name || "", 
+          phone: data.phone || "",
+          is_superuser: data.is_superuser || false,
+          is_verified: data.is_verified || false,
+          is_active: data.is_active || true
+        });
       } catch (err) {
         setError(err.message || "Kunne ikke hente profil");
       } finally {
@@ -29,17 +46,24 @@ export default function Account() {
   async function save() {
     setSaving(true);
     setError(null);
+    setSuccess(false);
     try {
-      const res = await fetch(`${API}/users/me/profile`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ name: profile.name, phone: profile.phone }),
+      const res = await fetch(`${API}/users/me`, {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json", 
+          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+        },
+        body: JSON.stringify({ 
+          full_name: profile.full_name, 
+          phone: profile.phone 
+        }),
       });
       if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
       const data = await res.json();
-      // optionally persist email change if server allows
-      if (data.user && data.user.email) localStorage.setItem("userEmail", data.user.email);
-      setProfile(p => ({ ...p, ...((data.user) || {}) }));
+      setProfile(p => ({ ...p, ...data }));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err.message || "Feil ved lagring");
     } finally {
@@ -47,39 +71,167 @@ export default function Account() {
     }
   }
 
+  function resetForm() {
+    setProfile(prev => ({
+      ...prev,
+      full_name: "",
+      phone: ""
+    }));
+  }
+
   return (
-    <div className="home-container">
-      <main className="content" role="main">
-        <section className="card">
-          <h2>Kontoinnstillinger</h2>
-          {loading ? <div>Henter profil…</div> : null}
-          {error ? <div className="error-msg">{error}</div> : null}
+    <div className="account-container">
+      <div className="account-header">
+        <h1 className="account-title">Kontoinnstillinger</h1>
+        <p className="account-subtitle">Administrer din profil og kontoinnstillinger</p>
+      </div>
 
-          {!loading && (
-            <div>
-              <div className="form-group">
-                <label>E-post</label>
-                <input value={profile.email} readOnly />
+      <div className="account-content">
+        {loading ? (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <p>Henter profilinformasjon...</p>
+          </div>
+        ) : (
+          <div className="account-sections">
+            {/* Profile Information Section */}
+            <section className="account-section">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">👤</span>
+                  Profilinformasjon
+                </h2>
+                <p className="section-description">Oppdater din personlige informasjon</p>
               </div>
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">E-postadresse</label>
+                  <div className="form-field">
+                    <input 
+                      type="email" 
+                      value={profile.email} 
+                      readOnly 
+                      className="form-input readonly"
+                    />
+                    <span className="field-note">E-postadressen kan ikke endres</span>
+                  </div>
+                </div>
 
-              <div className="form-group">
-                <label>Navn</label>
-                <input value={profile.name} onChange={(e)=>setProfile({...profile, name: e.target.value})} />
-              </div>
+                <div className="form-group">
+                  <label className="form-label">Fullt navn</label>
+                  <input 
+                    type="text" 
+                    value={profile.full_name} 
+                    onChange={(e) => setProfile({...profile, full_name: e.target.value})}
+                    className="form-input"
+                    placeholder="Skriv inn ditt fulle navn"
+                  />
+                </div>
 
-              <div className="form-group">
-                <label>Telefon</label>
-                <input value={profile.phone} onChange={(e)=>setProfile({...profile, phone: e.target.value})} />
+                <div className="form-group">
+                  <label className="form-label">Telefonnummer</label>
+                  <input 
+                    type="tel" 
+                    value={profile.phone} 
+                    onChange={(e) => setProfile({...profile, phone: e.target.value})}
+                    className="form-input"
+                    placeholder="Skriv inn ditt telefonnummer"
+                  />
+                </div>
               </div>
+            </section>
 
-              <div style={{ display:"flex", gap:8 }}>
-                <button className="btn" onClick={save} disabled={saving}>{saving ? "Lagrer..." : "Lagre endringer"}</button>
-                <button className="btn btn-ghost" onClick={() => { setProfile({ email: profile.email, name: localStorage.getItem("contact_name")||"", phone: localStorage.getItem("contact_phone")||"" }); }}>Tilbakestill</button>
+            {/* Account Status Section */}
+            <section className="account-section">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">🔒</span>
+                  Kontostatus
+                </h2>
+                <p className="section-description">Din kontos nåværende status</p>
               </div>
-            </div>
-          )}
-        </section>
-      </main>
+              
+              <div className="status-grid">
+                <div className="status-item">
+                  <div className="status-label">Kontotype</div>
+                  <div className={`status-value ${profile.is_superuser ? 'admin' : 'user'}`}>
+                    {profile.is_superuser ? 'Administrator' : 'Standard bruker'}
+                  </div>
+                </div>
+                
+                <div className="status-item">
+                  <div className="status-label">E-post bekreftet</div>
+                  <div className={`status-value ${profile.is_verified ? 'verified' : 'unverified'}`}>
+                    {profile.is_verified ? 'Ja' : 'Nei'}
+                  </div>
+                </div>
+                
+                <div className="status-item">
+                  <div className="status-label">Konto aktiv</div>
+                  <div className={`status-value ${profile.is_active ? 'active' : 'inactive'}`}>
+                    {profile.is_active ? 'Ja' : 'Nei'}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Actions Section */}
+            <section className="account-section">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">⚙️</span>
+                  Handlinger
+                </h2>
+                <p className="section-description">Administrer din konto</p>
+              </div>
+              
+              <div className="action-buttons">
+                <button 
+                  className="btn btn-primary" 
+                  onClick={save} 
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <span className="btn-spinner"></span>
+                      Lagrer...
+                    </>
+                  ) : (
+                    <>
+                      <span className="btn-icon">💾</span>
+                      Lagre endringer
+                    </>
+                  )}
+                </button>
+                
+                <button 
+                  className="btn btn-outline" 
+                  onClick={resetForm}
+                  disabled={saving}
+                >
+                  <span className="btn-icon">🔄</span>
+                  Tilbakestill
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {error && (
+          <div className="alert alert-error">
+            <span className="alert-icon">⚠️</span>
+            <span className="alert-message">{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="alert alert-success">
+            <span className="alert-icon">✅</span>
+            <span className="alert-message">Profil oppdatert vellykket!</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

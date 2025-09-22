@@ -11,6 +11,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # Legg til egne felter om du vil:
     
     full_name: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(length=20), nullable=True)
 
 class PageContent(Base):
     __tablename__ = "page_content"

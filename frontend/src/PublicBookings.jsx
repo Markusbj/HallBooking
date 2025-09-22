@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -52,8 +53,25 @@ export default function PublicBookings() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [openDay, setOpenDay] = useState(null); // date string shown in top-left panel
+  const [showWeekSelector, setShowWeekSelector] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [dropdownRef, setDropdownRef] = useState(null);
 
   useEffect(() => { fetchWeek(); /* eslint-disable-next-line */ }, [weekStart]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (showWeekSelector && 
+          !event.target.closest('.week-selector-container') && 
+          !event.target.closest('[data-week-dropdown]')) {
+        setShowWeekSelector(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showWeekSelector]);
 
   async function fetchDay(dateStr) {
     const res = await fetch(`${API}/bookings/${dateStr}`);
@@ -96,6 +114,58 @@ export default function PublicBookings() {
     setOpenDay(openDay === date ? null : date);
   }
 
+  function generateWeekOptions() {
+    const options = [];
+    const currentDate = new Date();
+    const currentWeek = startOfWeek(currentDate);
+    
+    // Generate weeks from current week to 6 months in the future
+    for (let i = 0; i <= 24; i++) {
+      const weekDate = new Date(currentWeek);
+      weekDate.setDate(weekDate.getDate() + (i * 7));
+      
+      const weekNumber = getWeekNumber(weekDate);
+      const year = weekDate.getFullYear();
+      const isCurrent = weekDate.getTime() === currentWeek.getTime();
+      
+      options.push({
+        date: weekDate,
+        weekNumber,
+        year,
+        isCurrent,
+        label: `Uke ${weekNumber} i ${year}`
+      });
+    }
+    
+    // Sort so current week appears first, then future weeks in chronological order
+    return options.sort((a, b) => {
+      if (a.isCurrent) return -1;
+      if (b.isCurrent) return 1;
+      return a.date - b.date;
+    });
+  }
+
+  function selectWeek(weekDate) {
+    setWeekStart(startOfWeek(weekDate));
+    setShowWeekSelector(false);
+  }
+
+  function toggleWeekSelector(event) {
+    if (!showWeekSelector) {
+      const buttonRect = event.currentTarget.getBoundingClientRect();
+      
+      // Simple positioning - always below the button
+      const finalPosition = {
+        top: buttonRect.bottom + 8,
+        left: buttonRect.left,
+        width: Math.max(buttonRect.width, 250) // Ensure minimum width
+      };
+      
+      setDropdownPosition(finalPosition);
+    }
+    setShowWeekSelector(!showWeekSelector);
+  }
+
   const weekEnd = new Date(weekStart); 
   weekEnd.setDate(weekEnd.getDate() + 6); // Sunday
 
@@ -119,12 +189,110 @@ export default function PublicBookings() {
             </svg>
             I dag
           </button>
-          <input
-            type="week"
-            value={weekToInput(weekStart)}
-            onChange={(e) => setWeekStart(inputToWeek(e.target.value))}
-            className="week-input"
-          />
+          <div className="week-selector-container">
+            <button 
+              className="week-details-btn"
+              onClick={toggleWeekSelector}
+              title="Velg uke"
+            >
+              <span className="week-number">Uke {getWeekNumber(weekStart)}</span>
+              <span className="year">i {weekStart.getFullYear()}</span>
+              <svg className="calendar-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+              </svg>
+              <svg className="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            
+            {showWeekSelector && createPortal(
+              <div 
+                ref={setDropdownRef}
+                data-week-dropdown
+                style={{
+                  position: 'fixed',
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  width: `${dropdownPosition.width}px`,
+                  height: '300px',
+                  backgroundColor: 'white',
+                  border: '3px solid #3b82f6',
+                  borderRadius: '12px',
+                  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
+                  zIndex: 999999,
+                  overflow: 'hidden'
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '16px 20px',
+                  borderBottom: '1px solid #e5e7eb',
+                  backgroundColor: '#f8fafc'
+                }}>
+                  <span style={{ fontWeight: '600', color: '#1f2937' }}>Velg uke</span>
+                  <button 
+                    onClick={() => setShowWeekSelector(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '24px',
+                      height: '24px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      color: '#6b7280'
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div style={{
+                  maxHeight: '240px',
+                  overflowY: 'auto',
+                  padding: '8px 0'
+                }}>
+                  {generateWeekOptions().map((option, index) => (
+                    <button
+                      key={index}
+                      className={`week-option ${option.isCurrent ? 'current' : ''}`}
+                      onClick={() => selectWeek(option.date)}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        width: '100%',
+                        padding: '12px 20px',
+                        background: option.isCurrent ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: option.isCurrent ? 'white' : '#1f2937',
+                        fontSize: '14px',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <span style={{ fontWeight: '500' }}>{option.label}</span>
+                      {option.isCurrent && (
+                        <span style={{
+                          fontSize: '12px',
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontWeight: '600'
+                        }}>Nåværende</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>,
+              document.body
+            )}
+          </div>
         </div>
 
         <div className="week-info">

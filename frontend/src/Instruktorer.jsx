@@ -29,33 +29,17 @@ export default function Instruktorer() {
       name: "Lisbeth Drotz",
       title: "Instruktør",
       experience: "15 år",
-      specialties: ["Grunnleggende lydighet", "Spor", ],
+      specialties: ["Grunnleggende lydighet", "Spor"],
       description: "Lisbeth har deltat.",
       image: "👩‍🏫"
     },
     {
-      name: "Erik Hansen",
-      title: "Seniorinstruktør",
-      experience: "12 år",
+      name: "Roy Drotz",
+      title: "Instruktør",
+      experience: "10 år",
       specialties: ["Avansert trening", "Konkurranse", "Privat trening"],
-      description: "Erik har konkurrert på nasjonalt nivå og hjelper hundeeiere med avansert trening og konkurranseforberedelse.",
+      description: "Roy har stor erfaring med hundetrening og hjelper hundeeiere med både grunnleggende og avansert trening.",
       image: "👨‍🏫"
-    },
-    {
-      name: "Maria Larsen",
-      title: "Instruktør",
-      experience: "8 år",
-      specialties: ["Valp-trening", "Atferdsproblemer", "Familiehund"],
-      description: "Maria er spesialisert på valp-trening og hjelper familier med å bygge gode grunnlag for livslang læring.",
-      image: "👩‍🎓"
-    },
-    {
-      name: "Lars Andersen",
-      title: "Instruktør",
-      experience: "6 år",
-      specialties: ["Rally", "Obedience", "Gruppetrening"],
-      description: "Lars er vår rally-ekspert og leder våre gruppetreninger. Han har stor erfaring med å jobbe med mange hunder samtidig.",
-      image: "👨‍🎓"
     }
   ];
 

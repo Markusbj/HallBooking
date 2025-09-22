@@ -616,7 +616,7 @@ body {
 
 /* push page content under navbar */
 .app-content {
-  padding-top: 96px; /* gi litt mer luft enn navbar for å være sikker */
+  padding-top: calc(var(--navbar-height) + 32px); /* gi litt mer luft enn navbar for å være sikker */
   padding-left: 16px;
   padding-right: 16px;
   box-sizing: border-box;
@@ -626,7 +626,7 @@ body {
 @media (max-width: 720px) {
   .nav-brand-text { font-size: 14px; }
   .nav-logo { width: 30px; height: 30px; }
-  .app-content { padding-top: 76px; }
+  .app-content { padding-top: calc(var(--navbar-height) + 16px); }
   .nav-left { gap: 8px; }
 }
 .site-header .brand { display: none; }

@@ -272,6 +272,51 @@ async def get_my_bookings(user=Depends(current_active_user)):
             })
     return {"bookings": my}
 
+@app.get("/api/admin/bookings")
+async def get_all_bookings(user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """
+    Return all bookings for admin users with user information.
+    """
+    _require_admin(user)
+    
+    all_bookings = []
+    for b in BOOKINGS.values():
+        # Get user information
+        user_info = None
+        if b.get("created_by"):
+            try:
+                user_info = await crud.get_user_by_id(db, b["created_by"])
+            except:
+                user_info = {"id": b["created_by"], "email": "Ukjent bruker", "name": "Ukjent bruker"}
+        
+        start = b["start_time"].isoformat() if isinstance(b["start_time"], datetime) else str(b["start_time"])
+        end = b["end_time"].isoformat() if isinstance(b["end_time"], datetime) else str(b["end_time"])
+        
+        all_bookings.append({
+            "id": b["id"],
+            "hall": b.get("hall"),
+            "start_time": start,
+            "end_time": end,
+            "created_by": b.get("created_by"),
+            "user": user_info,
+            "created_at": b.get("created_at", start)  # Use start_time as fallback
+        })
+    
+    # Sort by start_time (newest first)
+    all_bookings.sort(key=lambda x: x["start_time"], reverse=True)
+    
+    return {"bookings": all_bookings}
+
+@app.get("/api/admin/users")
+async def get_all_users(user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """
+    Return all users for admin users.
+    """
+    _require_admin(user)
+    
+    users = await crud.get_all_users(db)
+    return {"users": users}
+
 # Add/replace profile pydantic model and endpoints to use DB session
 class UserProfileUpdate(BaseModel):
     name: Optional[str] = None

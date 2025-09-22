@@ -33,69 +33,129 @@ export default function Oversikt(props) {
   }
 
   return (
-    <div className="home-container">
-      <main className="content" role="main">
-        <section className="card">
-          <h2>Oversikt</h2>
-          <p className="lead">Velkommen {userEmail}! Her finner du dine bookinger og rask tilgang til funksjoner.</p>
+    <div className="oversikt-container">
+      <div className="oversikt-header">
+        <div className="welcome-section">
+          <h1>Velkommen tilbake!</h1>
+          <p className="welcome-subtitle">Hei {userEmail}, her er din oversikt over bookinger og tilgjengelige funksjoner.</p>
+        </div>
+        
+        <div className="quick-actions">
+          <Link to="/bookings" className="action-card primary">
+            <div className="action-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+              </svg>
+            </div>
+            <div className="action-content">
+              <h3>Book treningshall</h3>
+              <p>Se tilgjengelige tider og book din økt</p>
+            </div>
+          </Link>
+          
+          {isAdmin && (
+            <Link to="/admin" className="action-card secondary">
+              <div className="action-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+              <div className="action-content">
+                <h3>Admin-panel</h3>
+                <p>Administrer systemet og se statistikk</p>
+              </div>
+            </Link>
+          )}
+          
+          <Link to="/account" className="action-card ghost">
+            <div className="action-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+            </div>
+            <div className="action-content">
+              <h3>Kontoinnstillinger</h3>
+              <p>Oppdater din profil og innstillinger</p>
+            </div>
+          </Link>
+        </div>
+      </div>
 
-          <div className="actions">
-            <Link to="/bookings" className="btn btn-primary">Book treningshall</Link>
-            {isAdmin && <Link to="/admin" className="btn btn-secondary">Admin-panel</Link>}
-            <Link to="/account" className="btn btn-ghost">Kontoinnstillinger</Link>
+      <div className="oversikt-content">
+        <div className="bookings-section">
+          <div className="section-header">
+            <h2>Dine kommende bookinger</h2>
+            <div className="booking-count">
+              {loading ? "..." : myBookings.length} {myBookings.length === 1 ? "booking" : "bookinger"}
+            </div>
           </div>
-        </section>
-
-        <section className="card small">
-          <h3>Dagens status</h3>
-          <p>Her finner du en rask oversikt over dine bookinger og tilgjengelighet.</p>
-        </section>
-
-        <section className="card" style={{ marginTop: 12 }}>
-          <h3>Dine kommende bookinger</h3>
-          {loading && <div>Henter dine bookinger…</div>}
-          {error && <div className="error-msg">{error}</div>}
-          {!loading && myBookings.length === 0 && <div>Du har ingen kommende bookinger.</div>}
-
-          <ul className="upcoming" style={{ marginTop: 12 }}>
-            {myBookings
-              .map(b => ({ ...b, start: b.start_time ? new Date(b.start_time) : null, end: b.end_time ? new Date(b.end_time) : null }))
-              .sort((a,b) => (a.start && b.start) ? a.start - b.start : 0)
-              .map(b => (
-                <li key={b.id}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{b.hall || "Ukjent sal"}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                      {b.start ? b.start.toLocaleString() : b.start_time} — {b.end ? b.end.toLocaleTimeString([], {hour: "2-digit", minute:"2-digit"}) : b.end_time}
+          
+          {loading && (
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <p>Henter dine bookinger...</p>
+            </div>
+          )}
+          
+          {error && (
+            <div className="error-state">
+              <div className="error-icon">⚠️</div>
+              <p>{error}</p>
+              <button onClick={fetchMyBookings} className="btn btn-outline">Prøv igjen</button>
+            </div>
+          )}
+          
+          {!loading && !error && myBookings.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">📅</div>
+              <h3>Ingen kommende bookinger</h3>
+              <p>Du har ingen kommende bookinger. Klikk på "Book treningshall" for å opprette en ny booking.</p>
+              <Link to="/bookings" className="btn btn-primary">Book treningshall</Link>
+            </div>
+          )}
+          
+          {!loading && !error && myBookings.length > 0 && (
+            <div className="bookings-grid">
+              {myBookings
+                .map(b => ({ ...b, start: b.start_time ? new Date(b.start_time) : null, end: b.end_time ? new Date(b.end_time) : null }))
+                .sort((a,b) => (a.start && b.start) ? a.start - b.start : 0)
+                .map(b => (
+                  <div key={b.id} className="booking-card">
+                    <div className="booking-header">
+                      <h4>{b.hall || "Ukjent sal"}</h4>
+                      <span className="booking-status upcoming">Kommende</span>
+                    </div>
+                    <div className="booking-details">
+                      <div className="booking-time">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                        </svg>
+                        <span>
+                          {b.start ? b.start.toLocaleDateString('no-NO', { 
+                            weekday: 'long', 
+                            day: 'numeric', 
+                            month: 'long' 
+                          }) : b.start_time}
+                        </span>
+                      </div>
+                      <div className="booking-duration">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <span>
+                          {b.start ? b.start.toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : b.start_time} - {b.end ? b.end.toLocaleTimeString('no-NO', {hour: '2-digit', minute: '2-digit'}) : b.end_time}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="booking-actions">
+                      <Link to="/bookings" className="btn btn-outline btn-sm">Vis i kalender</Link>
                     </div>
                   </div>
-                  <div>
-                    <Link to="/bookings" className="btn btn-ghost" style={{ padding: "6px 10px" }}>Vis i kalender</Link>
-                  </div>
-                </li>
-              ))}
-          </ul>
-        </section>
-      </main>
-
-      <footer className="site-footer" aria-label="Bunntekst">
-        <div className="footer-inner container">
-          <small>© {new Date().getFullYear()} TG Tromsø — Hundetrening</small>
-          <div className="social-links">
-            <a href="https://www.facebook.com/yourpage" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#1877F2" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22 12.07C22 6.49 17.52 2 11.94 2S2 6.49 2 12.07c0 4.99 3.66 9.13 8.44 9.93v-7.03H8.03v-2.9h2.41V9.41c0-2.39 1.43-3.71 3.62-3.71 1.05 0 2.15.19 2.15.19v2.37h-1.21c-1.19 0-1.56.74-1.56 1.5v1.8h2.65l-.42 2.9h-2.23v7.03C18.34 21.2 22 17.06 22 12.07z"/>
-              </svg>
-            </a>
-
-            <a href="https://www.instagram.com/yourhandle" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#E4405F" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 6.2A3.8 3.8 0 1 0 15.8 12 3.8 3.8 0 0 0 12 8.2zm6.4-.7a1.12 1.12 0 1 0 1.12 1.12A1.12 1.12 0 0 0 18.4 7.5zM12 9.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
-              </svg>
-            </a>
-          </div>
+                ))}
+            </div>
+          )}
         </div>
-      </footer>
+      </div>
     </div>
   );
 }

@@ -20,6 +20,16 @@ async def get_bookings(db: AsyncSession, skip=0, limit=10):
     return result.scalars().all()
 
 # --- NEW: update user profile helper ---
+async def get_user_by_id(db: AsyncSession, user_id: int):
+    """Get user by ID"""
+    result = await db.execute(select(models.User).filter(models.User.id == user_id))
+    return result.scalar_one_or_none()
+
+async def get_all_users(db: AsyncSession):
+    """Get all users"""
+    result = await db.execute(select(models.User))
+    return result.scalars().all()
+
 async def update_user_profile(db: AsyncSession, user_id, data: dict):
     """
     Update fields on models.User for given user_id and persist to DB.

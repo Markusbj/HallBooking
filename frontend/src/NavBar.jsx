@@ -9,7 +9,11 @@ export default function NavBar() {
   const [contactEmail, setContactEmail] = useState(localStorage.getItem("contact_email") || "");
   const [contactPhone, setContactPhone] = useState(localStorage.getItem("contact_phone") || "");
   const [darkMode, setDarkMode] = useState(localStorage.getItem("dark_mode") === "true");
-  const userEmail = localStorage.getItem("userEmail") || "";
+  const [userInfo, setUserInfo] = useState({
+    email: localStorage.getItem("userEmail") || "",
+    full_name: localStorage.getItem("userFullName") || "",
+    is_superuser: localStorage.getItem("isAdmin") === "true"
+  });
   const isLoggedIn = !!localStorage.getItem("token");
   const isAdmin = localStorage.getItem("isAdmin") === "true";
   const ref = useRef(null);
@@ -20,6 +24,28 @@ export default function NavBar() {
     localStorage.setItem("dark_mode", darkMode ? "true" : "false");
   }, [darkMode]);
 
+  // Load user info when logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      const token = localStorage.getItem("token");
+      const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+      
+      fetch(`${API}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        setUserInfo({
+          email: data.email || "",
+          full_name: data.full_name || "",
+          is_superuser: data.is_superuser || false
+        });
+        localStorage.setItem("userFullName", data.full_name || "");
+      })
+      .catch(err => console.error("Failed to load user info:", err));
+    }
+  }, [isLoggedIn]);
+
   useEffect(() => {
     function onDocClick(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -28,7 +54,7 @@ export default function NavBar() {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  if (loc.pathname === "/login" || loc.pathname === "/register") return null;
+  // NavBar is now available on all pages including login and register
 
   function handleSave() {
     localStorage.setItem("contact_email", contactEmail);
@@ -78,18 +104,35 @@ export default function NavBar() {
                 onClick={() => setOpen((s) => !s)}
                 aria-haspopup="true"
                 aria-expanded={open}
-                title={userEmail || "Konto"}
+                title={userInfo.full_name || userInfo.email || "Konto"}
               >
-                <span className="nav-user-avatar">{userEmail ? userEmail.charAt(0).toUpperCase() : "H"}</span>
-                <span className="nav-user-name">{userEmail ? userEmail : "Min konto"}</span>
+                <span className="nav-user-avatar">
+                  {userInfo.full_name ? userInfo.full_name.charAt(0).toUpperCase() : 
+                   userInfo.email ? userInfo.email.charAt(0).toUpperCase() : "H"}
+                </span>
+                <span className="nav-user-name">
+                  {userInfo.full_name || userInfo.email || "Min konto"}
+                </span>
               </button>
 
               <div className={`nav-dropdown ${open ? "open" : ""}`} role="menu" aria-hidden={!open}>
                 <div className="dropdown-section">
                   <div className="dropdown-title">Konto</div>
                   <div className="dropdown-row">
-                    <label className="row-label">Bruker</label>
-                    <div className="row-value">{userEmail || "Ulogget"}</div>
+                    <label className="row-label">Navn</label>
+                    <div className="row-value">{userInfo.full_name || "Ikke satt"}</div>
+                  </div>
+                  <div className="dropdown-row">
+                    <label className="row-label">E-post</label>
+                    <div className="row-value">{userInfo.email || "Ulogget"}</div>
+                  </div>
+                  <div className="dropdown-row">
+                    <label className="row-label">Kontotype</label>
+                    <div className="row-value">
+                      <span className={`user-type ${userInfo.is_superuser ? 'admin' : 'user'}`}>
+                        {userInfo.is_superuser ? 'Administrator' : 'Standard bruker'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 

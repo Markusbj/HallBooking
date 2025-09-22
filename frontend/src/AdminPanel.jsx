@@ -11,12 +11,29 @@ function AdminPanel() {
   const [selectedPage, setSelectedPage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [bookingFilter, setBookingFilter] = useState({
+    search: '',
+    hall: '',
+    dateFrom: '',
+    dateTo: ''
+  });
+  const [users, setUsers] = useState([]);
+  const [userFilter, setUserFilter] = useState({
+    search: '',
+    role: '',
+    status: ''
+  });
 
   useEffect(() => {
     if (activeTab === 'content') {
       fetchPageContent();
     } else if (activeTab === 'blocking') {
       fetchBlockedTimes();
+    } else if (activeTab === 'bookings') {
+      fetchBookings();
+    } else if (activeTab === 'users') {
+      fetchUsers();
     }
   }, [activeTab]);
 
@@ -191,6 +208,125 @@ function AdminPanel() {
     }
   };
 
+  const fetchBookings = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/admin/bookings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Kunne ikke hente bookinger');
+      }
+      
+      const data = await response.json();
+      setBookings(data.bookings || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/admin/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Kunne ikke hente brukere');
+      }
+      
+      const data = await response.json();
+      setUsers(data.users || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteBooking = async (bookingId) => {
+    if (!window.confirm('Er du sikker på at du vil slette denne bookingen?')) {
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/bookings/${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Kunne ikke slette booking');
+      }
+      
+      await fetchBookings();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredBookings = bookings.filter(booking => {
+    const matchesSearch = !bookingFilter.search || 
+      booking.user?.name?.toLowerCase().includes(bookingFilter.search.toLowerCase()) ||
+      booking.user?.email?.toLowerCase().includes(bookingFilter.search.toLowerCase()) ||
+      booking.user?.phone?.toLowerCase().includes(bookingFilter.search.toLowerCase()) ||
+      booking.hall?.toLowerCase().includes(bookingFilter.search.toLowerCase());
+    
+    const matchesHall = !bookingFilter.hall || booking.hall === bookingFilter.hall;
+    
+    const bookingDate = new Date(booking.start_time);
+    const fromDate = bookingFilter.dateFrom ? new Date(bookingFilter.dateFrom) : null;
+    const toDate = bookingFilter.dateTo ? new Date(bookingFilter.dateTo) : null;
+    
+    const matchesDateFrom = !fromDate || bookingDate >= fromDate;
+    const matchesDateTo = !toDate || bookingDate <= toDate;
+    
+    return matchesSearch && matchesHall && matchesDateFrom && matchesDateTo;
+  });
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = !userFilter.search || 
+      user.full_name?.toLowerCase().includes(userFilter.search.toLowerCase()) ||
+      user.email?.toLowerCase().includes(userFilter.search.toLowerCase());
+    
+    const matchesRole = !userFilter.role || 
+      (userFilter.role === 'admin' && user.is_superuser) ||
+      (userFilter.role === 'user' && !user.is_superuser);
+    
+    const matchesStatus = !userFilter.status || 
+      (userFilter.status === 'active' && user.is_active) ||
+      (userFilter.status === 'inactive' && !user.is_active);
+    
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const getUniqueHalls = () => {
+    const halls = [...new Set(bookings.map(b => b.hall).filter(Boolean))];
+    return halls;
+  };
+
   // Mapping for user-friendly section names
   const sectionLabels = {
     'hero_title': 'Hovedtittel',
@@ -351,6 +487,12 @@ function AdminPanel() {
           onClick={() => setActiveTab('bookings')}
         >
           Bookinger
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          Brukere
         </button>
       </div>
 
@@ -662,13 +804,124 @@ function AdminPanel() {
       )}
 
       {activeTab === 'bookings' && (
-        <div>
-          <h2>Booking-administrasjon</h2>
-        <ul>
-          <li>Endre bookinger</li>
-          <li>Endre tider</li>
-          {/* Legg til flere admin-funksjoner her */}
-        </ul>
+        <div className="bookings-management">
+          <div className="content-header">
+            <h2>Booking-historikk</h2>
+            <div className="booking-stats">
+              <span className="stat-item">
+                <strong>{bookings.length}</strong> totalt bookinger
+              </span>
+              <span className="stat-item">
+                <strong>{filteredBookings.length}</strong> filtrerte
+              </span>
+            </div>
+          </div>
+
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+
+          {loading && <div>Laster bookinger...</div>}
+
+          {/* Filter Section */}
+          <div className="booking-filters">
+            <div className="filter-row">
+              <div className="form-group">
+                <label>Søk:</label>
+                <input
+                  type="text"
+                  placeholder="Søk etter navn, e-post, telefon eller hall..."
+                  value={bookingFilter.search}
+                  onChange={(e) => setBookingFilter({...bookingFilter, search: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Hall:</label>
+                <select
+                  value={bookingFilter.hall}
+                  onChange={(e) => setBookingFilter({...bookingFilter, hall: e.target.value})}
+                >
+                  <option value="">Alle haller</option>
+                  {getUniqueHalls().map(hall => (
+                    <option key={hall} value={hall}>{hall}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="filter-row">
+              <div className="form-group">
+                <label>Fra dato:</label>
+                <input
+                  type="date"
+                  value={bookingFilter.dateFrom}
+                  onChange={(e) => setBookingFilter({...bookingFilter, dateFrom: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Til dato:</label>
+                <input
+                  type="date"
+                  value={bookingFilter.dateTo}
+                  onChange={(e) => setBookingFilter({...bookingFilter, dateTo: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setBookingFilter({search: '', hall: '', dateFrom: '', dateTo: ''})}
+                >
+                  Nullstill filter
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Bookings List */}
+          <div className="bookings-list">
+            {filteredBookings.length === 0 ? (
+              <div className="no-bookings">
+                <p>Ingen bookinger funnet med de valgte filtrene.</p>
+              </div>
+            ) : (
+              filteredBookings.map((booking) => (
+                <div key={booking.id} className="booking-item">
+                  <div className="booking-info">
+                    <div className="booking-header">
+                      <h4>{booking.hall}</h4>
+                      <span className="booking-id">#{booking.id.slice(0, 8)}</span>
+                    </div>
+                    <div className="booking-details">
+                      <div className="booking-time">
+                        <strong>Tid:</strong> {new Date(booking.start_time).toLocaleString('no-NO')} - {new Date(booking.end_time).toLocaleString('no-NO', {hour: '2-digit', minute: '2-digit'})}
+                      </div>
+                      <div className="booking-user">
+                        <strong>Bruker:</strong> {booking.user?.name || 'Ukjent'} ({booking.user?.email || 'Ukjent e-post'})
+                      </div>
+                      {booking.user?.phone && (
+                        <div className="booking-phone">
+                          <strong>Telefon:</strong> {booking.user.phone}
+                        </div>
+                      )}
+                      <div className="booking-created">
+                        <strong>Opprettet:</strong> {new Date(booking.created_at).toLocaleString('no-NO')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="booking-actions">
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => deleteBooking(booking.id)}
+                      title="Slett booking"
+                    >
+                      Slett
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -710,6 +963,133 @@ function AdminPanel() {
                 <button type="button" className="btn btn-ghost" onClick={() => setEditingContent(null)}>Avbryt</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div className="users-management">
+          <div className="content-header">
+            <h2>Brukeradministrasjon</h2>
+            <div className="user-stats">
+              <span className="stat-item">
+                <strong>{users.length}</strong> totalt brukere
+              </span>
+              <span className="stat-item">
+                <strong>{users.filter(u => u.is_superuser).length}</strong> administratorer
+              </span>
+            </div>
+          </div>
+
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+
+          {loading && <div>Laster brukere...</div>}
+
+          {/* User Filter Section */}
+          <div className="user-filters">
+            <div className="filter-row">
+              <div className="form-group">
+                <label>Søk:</label>
+                <input
+                  type="text"
+                  placeholder="Søk etter navn eller e-post..."
+                  value={userFilter.search}
+                  onChange={(e) => setUserFilter({...userFilter, search: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Rolle:</label>
+                <select
+                  value={userFilter.role}
+                  onChange={(e) => setUserFilter({...userFilter, role: e.target.value})}
+                >
+                  <option value="">Alle roller</option>
+                  <option value="admin">Administrator</option>
+                  <option value="user">Standard bruker</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Status:</label>
+                <select
+                  value={userFilter.status}
+                  onChange={(e) => setUserFilter({...userFilter, status: e.target.value})}
+                >
+                  <option value="">Alle statuser</option>
+                  <option value="active">Aktiv</option>
+                  <option value="inactive">Inaktiv</option>
+                </select>
+              </div>
+            </div>
+            <button 
+              className="btn btn-outline"
+              onClick={() => setUserFilter({search: '', role: '', status: ''})}
+            >
+              Nullstill filtre
+            </button>
+          </div>
+
+          {/* Users List */}
+          <div className="users-list">
+            {filteredUsers.length === 0 ? (
+              <div className="no-users">
+                <p>Ingen brukere funnet med de valgte filtrene.</p>
+              </div>
+            ) : (
+              filteredUsers.map((user) => (
+                <div key={user.id} className="user-item">
+                  <div className="user-info">
+                    <div className="user-header">
+                      <h4>{user.full_name || 'Ikke satt'}</h4>
+                      <span className={`user-role ${user.is_superuser ? 'admin' : 'user'}`}>
+                        {user.is_superuser ? 'Administrator' : 'Standard bruker'}
+                      </span>
+                    </div>
+                    <div className="user-details">
+                      <div className="user-email">
+                        <strong>E-post:</strong> {user.email}
+                      </div>
+                      {user.phone && (
+                        <div className="user-phone">
+                          <strong>Telefon:</strong> {user.phone}
+                        </div>
+                      )}
+                      <div className="user-status">
+                        <strong>Status:</strong> 
+                        <span className={`status ${user.is_active ? 'active' : 'inactive'}`}>
+                          {user.is_active ? 'Aktiv' : 'Inaktiv'}
+                        </span>
+                      </div>
+                      <div className="user-verified">
+                        <strong>E-post bekreftet:</strong> 
+                        <span className={`status ${user.is_verified ? 'verified' : 'unverified'}`}>
+                          {user.is_verified ? 'Ja' : 'Nei'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="user-actions">
+                    <button
+                      className="btn btn-sm btn-outline"
+                      onClick={() => {/* TODO: Edit user */}}
+                      title="Rediger bruker"
+                    >
+                      Rediger
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => {/* TODO: Delete user */}}
+                      title="Slett bruker"
+                    >
+                      Slett
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
