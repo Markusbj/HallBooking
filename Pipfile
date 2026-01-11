@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 psycopg2-binary = "*"
+asyncpg = "*"
 fastapi = "<1,>=0.111"
 fastapi-users = "==12.*"
 fastapi-users-db-sqlalchemy = "==7.*"

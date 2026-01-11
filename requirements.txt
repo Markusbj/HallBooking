@@ -1,0 +1,21 @@
+# Requirements file for deployment
+# Generert fra Pipfile for enklere deployment på noen plattformer
+
+# Hvis du bruker pipenv, bruk heller: pipenv install
+# Dette er en backup for plattformer som ikke støtter Pipfile direkte
+
+fastapi>=0.111,<1
+fastapi-users==12.*
+fastapi-users-db-sqlalchemy==7.*
+sqlalchemy>=2
+uvicorn
+email-validator
+passlib[bcrypt]
+python-multipart
+pydantic-settings
+aiosqlite
+setuptools
+bcrypt==4.0.1
+tzlocal
+psycopg2-binary
+asyncpg

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 import uuid
 import logging
 import time
+import os
 
 # Sett opp logging
 logging.basicConfig(
@@ -32,13 +33,33 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="HallBooking API", lifespan=lifespan)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS configuration - støtter både utvikling og produksjon
+
+# Hent tillatte origins fra environment variable, eller bruk default for utvikling
+ALLOWED_ORIGINS: List[str] = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
+).split(",")
+
+# Hvis vi er i produksjon og har spesifikke origins, bruk dem
+# Ellers bruk regex for utvikling
+if os.getenv("ENVIRONMENT") == "production" and len(ALLOWED_ORIGINS) > 0:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # Utvikling: tillat localhost med regex
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Simple request logger
 @app.middleware("http")

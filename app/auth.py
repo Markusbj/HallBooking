@@ -17,9 +17,11 @@ from .database import Base
 logger = logging.getLogger(__name__)
 
 # ---- DB (async) ----
-ASYNC_DATABASE_URL = settings.DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
-async_engine = create_async_engine(ASYNC_DATABASE_URL, future=True, echo=False)
-async_session_maker = async_sessionmaker(async_engine, expire_on_commit=False)
+# Bruk samme database connection som i database.py
+from .database import engine, AsyncSessionLocal
+
+async_engine = engine
+async_session_maker = AsyncSessionLocal
 
 async def create_db_and_tables():
     logger.info("Creating database tables...")

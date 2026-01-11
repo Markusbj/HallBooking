@@ -1,8 +1,13 @@
 from pydantic_settings import BaseSettings
+import os
 
 class Settings(BaseSettings):
     SECRET: str = "CHANGE_ME"  # legg i .env i prod
-    DATABASE_URL: str = "sqlite:///./dev.db"  # bytt til Postgres senere
+    # Støtter både SQLite og PostgreSQL
+    # SQLite: sqlite:///./dev.db
+    # PostgreSQL: postgresql://user:password@localhost/dbname
+    # Eller for cloud (Supabase/Neon): postgresql://user:password@host:port/dbname
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
 
     class Config:
         env_file = ".env"
