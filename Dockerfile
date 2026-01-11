@@ -13,11 +13,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Kopier dependency filer
-COPY Pipfile Pipfile.lock ./
+# Bruk requirements.txt som primær metode (mer standard for Docker)
+COPY requirements.txt ./
 
-# Installer pipenv og dependencies
-RUN pip install pipenv && \
-    pipenv install --deploy --system
+# Installer Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopier resten av applikasjonen
 COPY . .

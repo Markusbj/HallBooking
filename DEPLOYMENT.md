@@ -238,6 +238,34 @@ ENVIRONMENT=production
 
 ---
 
+## Docker Deployment
+
+Prosjektet inkluderer en `Dockerfile` for enklere deployment. Dockerfile bruker `requirements.txt` for dependencies.
+
+### Bygge Docker Image
+
+```bash
+# Bygg image
+docker build -t hallbooking-backend .
+
+# Kjør container
+docker run -p 8000:8000 \
+  -e DATABASE_URL=postgresql://... \
+  -e SECRET=din-hemmelige-nøkkel \
+  -e ENVIRONMENT=production \
+  -e ALLOWED_ORIGINS=https://din-frontend-url.com \
+  hallbooking-backend
+```
+
+### Deploy med Docker
+
+Mange hosting-plattformer støtter Docker:
+- **Railway**: Automatisk detekterer Dockerfile
+- **Render**: Støtter Docker deployment
+- **Fly.io**: Perfekt for Docker
+- **Google Cloud Run**: Støtter Docker
+- **AWS ECS/Fargate**: Støtter Docker
+
 ## Tips og Best Practices
 
 1. **Aldri commit `.env` filer** - bruk environment variables i hosting-plattformen
@@ -246,6 +274,7 @@ ENVIRONMENT=production
 4. **Monitor logs** - Railway/Render gir deg tilgang til logs
 5. **Backup database** - Supabase har automatisk backup, men vurder ekstra backup
 6. **SSL/HTTPS** - Alle moderne hosting-plattformer gir automatisk SSL
+7. **Docker**: Bruk `requirements.txt` for dependencies i Docker (ikke Pipfile.lock)
 
 ---
 
