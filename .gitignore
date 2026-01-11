@@ -6,8 +6,6 @@ __pycache__/
 dist/
 build/
 
-# pipenv
-Pipfile.lock
 
 # virtualenv/venv
 .venv/
