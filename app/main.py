@@ -36,14 +36,20 @@ app = FastAPI(title="HallBooking API", lifespan=lifespan)
 # CORS configuration - støtter både utvikling og produksjon
 
 # Hent tillatte origins fra environment variable, eller bruk default for utvikling
-ALLOWED_ORIGINS: List[str] = os.getenv(
+allowed_origins_str = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
-).split(",")
+)
+# Split og strippe whitespace, fjern tomme strings
+ALLOWED_ORIGINS: List[str] = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+ENVIRONMENT = os.getenv("ENVIRONMENT", "")
+
+# Log CORS config for debugging
+logger.info(f"🔒 CORS Config: ENVIRONMENT={ENVIRONMENT}, ALLOWED_ORIGINS={ALLOWED_ORIGINS}")
 
 # Hvis vi er i produksjon og har spesifikke origins, bruk dem
 # Ellers bruk regex for utvikling
-if os.getenv("ENVIRONMENT") == "production" and len(ALLOWED_ORIGINS) > 0:
+if ENVIRONMENT == "production" and len(ALLOWED_ORIGINS) > 0:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=ALLOWED_ORIGINS,
