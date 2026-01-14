@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timezone
 from . import models, schemas
 
 async def create_booking(db: AsyncSession, booking: schemas.BookingCreate, user_id: int):
@@ -230,12 +230,18 @@ async def get_news_item(db: AsyncSession, item_id: str):
 
 async def create_news_item(db: AsyncSession, news_item: schemas.NewsItemCreate, user_id: str):
     """Create new news item"""
+    # Convert timezone-aware datetime to timezone-naive UTC if needed
+    event_date = news_item.event_date
+    if event_date and hasattr(event_date, 'tzinfo') and event_date.tzinfo is not None:
+        # Convert to UTC first, then remove timezone info
+        event_date = event_date.astimezone(timezone.utc).replace(tzinfo=None)
+    
     db_news_item = models.NewsItem(
         title=news_item.title,
         content=news_item.content,
         excerpt=news_item.excerpt,
         item_type=news_item.item_type,
-        event_date=news_item.event_date,
+        event_date=event_date,
         published=news_item.published,
         featured=news_item.featured,
         image_url=news_item.image_url,
@@ -255,6 +261,9 @@ async def update_news_item(db: AsyncSession, item_id: str, news_item: schemas.Ne
     
     update_data = news_item.dict(exclude_unset=True)
     for field, value in update_data.items():
+        # Convert timezone-aware datetime to timezone-naive UTC if needed
+        if field == 'event_date' and value is not None and hasattr(value, 'tzinfo') and value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
         setattr(db_news_item, field, value)
     
     db_news_item.updated_at = datetime.now()
