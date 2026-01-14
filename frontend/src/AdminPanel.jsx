@@ -310,10 +310,11 @@ function AdminPanel() {
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const url = editingNewsItem 
-        ? `${API}/api/news/${editingNewsItem.id}`
-        : `${API}/api/news`;
-      const method = editingNewsItem ? 'PUT' : 'POST';
+      const isNew = !editingNewsItem || editingNewsItem.id === 'new' || !editingNewsItem.id;
+      const url = isNew
+        ? `${API}/api/news`
+        : `${API}/api/news/${editingNewsItem.id}`;
+      const method = isNew ? 'POST' : 'PUT';
       
       const body = {
         ...newsItemForm,
@@ -1399,7 +1400,6 @@ function AdminPanel() {
             <button 
               className="btn btn-primary"
               onClick={() => {
-                setEditingNewsItem(null);
                 setNewsItemForm({
                   title: '',
                   content: '',
@@ -1410,6 +1410,7 @@ function AdminPanel() {
                   featured: false,
                   image_url: ''
                 });
+                setEditingNewsItem({ id: 'new' });
               }}
             >
               + Ny kurs/nyhet
