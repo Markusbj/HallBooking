@@ -44,6 +44,22 @@ class BlockedTime(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     created_by: Mapped[str] = mapped_column(String, nullable=True)  # user_id who created the block
 
+class NewsItem(Base):
+    __tablename__ = "news_items"
+    
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    title: Mapped[str] = mapped_column(String(255))  # Title of the news/course/seminar
+    content: Mapped[str] = mapped_column(Text)  # Full content (HTML or markdown)
+    excerpt: Mapped[str] = mapped_column(String(500), nullable=True)  # Short description for preview
+    item_type: Mapped[str] = mapped_column(String(20))  # "kurs", "seminar", "nyhet"
+    event_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # When the course/seminar takes place
+    published: Mapped[bool] = mapped_column(default=False)  # Whether it's published and visible
+    featured: Mapped[bool] = mapped_column(default=False)  # Whether to show on front page
+    image_url: Mapped[str] = mapped_column(String(500), nullable=True)  # Optional image URL
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    created_by: Mapped[str] = mapped_column(String, nullable=True)  # user_id who created it
+
 
 
 

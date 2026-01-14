@@ -296,7 +296,7 @@ export default function PublicBookings() {
         </div>
 
         <div className="week-info">
-          <h2>Treningshaller</h2>
+          <h2>Treningshall</h2>
           <p className="week-range">{isoDate(weekStart)} — {isoDate(weekEnd)}</p>
           <div className="week-details">
             <span className="week-number">Uke {getWeekNumber(weekStart)}</span>
@@ -307,7 +307,7 @@ export default function PublicBookings() {
 
       <div className="bookings-content">
         <div className="calendar-section">
-          {loading && <div className="loading-state">Henter treningshaller...</div>}
+          {loading && <div className="loading-state">Henter treningshall...</div>}
           {error && <div className="error-msg">{error}</div>}
 
           <div className="calendar-grid" onClick={() => onDayHeaderClick(weekStart.toISOString().slice(0, 10))}>

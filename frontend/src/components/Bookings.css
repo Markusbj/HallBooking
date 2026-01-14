@@ -433,6 +433,26 @@
   align-items: flex-start;
 }
 
+.bookings-content.panel-top {
+  flex-direction: column;
+}
+
+.bookings-content.panel-top .booking-panel {
+  width: 100% !important;
+  position: static !important;
+  margin-bottom: 24px !important;
+  order: -1;
+  top: auto !important;
+  max-height: none !important;
+  align-self: stretch;
+}
+
+/* Ensure booking-panel is sticky when at bottom */
+.bookings-content:not(.panel-top) > .booking-panel {
+  position: sticky;
+  top: calc(var(--navbar-height) + 40px);
+}
+
 .calendar-section {
   flex: 1;
   min-width: 0;
@@ -736,6 +756,35 @@
 
 .panel-section:last-child {
   margin-bottom: 0;
+}
+
+.panel-position-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(216, 138, 68, 0.3);
+  background: rgba(216, 138, 68, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--accent);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.panel-position-toggle:hover {
+  background: rgba(216, 138, 68, 0.2);
+  transform: scale(1.05);
+}
+
+.panel-position-toggle:active {
+  transform: scale(0.95);
+}
+
+.panel-position-toggle svg {
+  transition: transform 0.2s ease;
 }
 
 .panel-section h3 {
@@ -1042,6 +1091,15 @@
   .bookings-content {
     flex-direction: column;
     gap: 24px;
+  }
+  
+  .bookings-content.panel-top {
+    flex-direction: column;
+  }
+  
+  .bookings-content.panel-top .booking-panel {
+    order: -1;
+    margin-bottom: 24px;
   }
   
   .booking-panel {

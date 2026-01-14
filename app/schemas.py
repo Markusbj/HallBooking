@@ -100,3 +100,40 @@ class BlockedTimeRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+class NewsItemCreate(BaseModel):
+    title: str
+    content: str
+    excerpt: Optional[str] = None
+    item_type: str  # "kurs", "seminar", "nyhet"
+    event_date: Optional[datetime] = None
+    published: bool = False
+    featured: bool = False
+    image_url: Optional[str] = None
+
+class NewsItemUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    excerpt: Optional[str] = None
+    item_type: Optional[str] = None
+    event_date: Optional[datetime] = None
+    published: Optional[bool] = None
+    featured: Optional[bool] = None
+    image_url: Optional[str] = None
+
+class NewsItemRead(BaseModel):
+    id: str
+    title: str
+    content: str
+    excerpt: Optional[str] = None
+    item_type: str
+    event_date: Optional[datetime] = None
+    published: bool
+    featured: bool
+    image_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] = None
+
+    class Config:
+        from_attributes = True

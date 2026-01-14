@@ -13,6 +13,8 @@ import Account from "./Account";
 import OmOss from "./OmOss";
 import Instruktorer from "./Instruktorer";
 import Kontakt from "./Kontakt";
+import Nyheter from "./Nyheter";
+import NyhetDetail from "./NyhetDetail";
 import "./styles/global.css";
 import "./components/NavBar.css";
 import "./components/Home.css";
@@ -85,6 +87,8 @@ function App() {
           <Route path="/om-oss" element={<OmOss />} />
           <Route path="/instruktorer" element={<Instruktorer />} />
           <Route path="/kontakt" element={<Kontakt />} />
+          <Route path="/nyheter" element={<Nyheter />} />
+          <Route path="/nyheter/:id" element={<NyhetDetail />} />
           <Route path="/admin" element={isLoggedIn && isAdmin ? <AdminPanel token={token} /> : <Navigate to="/" replace />} />
           <Route path="/account" element={isLoggedIn ? <Account token={token} /> : <Navigate to="/login" replace />} />
         </Routes>

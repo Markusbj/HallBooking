@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 export default function Kontakt() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { content, loading, error } = usePageContent("kontakt");
+  const [formType, setFormType] = useState(searchParams.get("type") || "");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -10,6 +13,25 @@ export default function Kontakt() {
     subject: "",
     message: ""
   });
+  const [submitted, setSubmitted] = useState(false);
+
+  // Map URL query params to form subjects
+  useEffect(() => {
+    const urlType = searchParams.get("type");
+    if (urlType) {
+      const typeMap = {
+        "ny-kunde": "Ny kunde-registrering",
+        "kurs": "Kurs",
+        "seminar": "Seminar",
+        "trening": "Trening",
+        "atferd": "Hjelp til atferdsproblemer"
+      };
+      if (typeMap[urlType]) {
+        setFormType(urlType);
+        setFormData(prev => ({ ...prev, subject: typeMap[urlType] }));
+      }
+    }
+  }, [searchParams]);
 
   // Fallback content if database content is not available
   const pageTitle = getContentValue(content, "page_title", "Kontakt oss");
@@ -20,7 +42,7 @@ export default function Kontakt() {
   const phoneTitle = getContentValue(content, "phone_title", "📞 Telefon");
   const phoneText = getContentValue(content, "phone_text", "+47 77 64 45 55<br /><small>Åpent: Man-Fre 08:00-20:00, Lør 09:00-16:00</small>");
   const emailTitle = getContentValue(content, "email_title", "📧 E-post");
-  const emailText = getContentValue(content, "email_text", "post@tgtromso.no<br />trening@tgtromso.no");
+  const emailText = getContentValue(content, "email_text", "tgnrk@gmail.com");
   const hoursTitle = getContentValue(content, "hours_title", "🕒 Åpningstider");
   const socialTitle = getContentValue(content, "social_title", "🌐 Sosiale medier");
   const formTitle = getContentValue(content, "form_title", "Send oss en melding");
@@ -41,11 +63,54 @@ export default function Kontakt() {
     );
   }
 
-  const handleSubmit = (e) => {
+  const handleFormTypeChange = (type) => {
+    setFormType(type);
+    setSearchParams(type ? { type } : {});
+    const typeMap = {
+      "ny-kunde": "Ny kunde-registrering",
+      "kurs": "Kurs",
+      "seminar": "Seminar",
+      "trening": "Trening",
+      "atferd": "Hjelp til atferdsproblemer",
+      "booking": "Booking av hall",
+      "annet": "Annet"
+    };
+    setFormData(prev => ({ 
+      ...prev, 
+      subject: typeMap[type] || "" 
+    }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Her kan du legge til logikk for å sende e-post
-    alert("Takk for din henvendelse! Vi kommer tilbake til deg snart.");
-    setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+    const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+    
+    // For ny kunde-registrering, add default message if empty
+    let messageToSend = formData.message;
+    if (formData.subject === "Ny kunde-registrering" && !formData.message) {
+      messageToSend = `Ønsker å bli registrert som ny kunde.\nNavn: ${formData.name}\nE-post: ${formData.email}\nTelefon: ${formData.phone || "Ikke oppgitt"}`;
+    }
+    
+    try {
+      const response = await fetch(`${API}/api/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          message: messageToSend
+        })
+      });
+      if (response.ok) {
+        setSubmitted(true);
+        setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+        setFormType("");
+        setSearchParams({});
+      } else {
+        alert("Kunne ikke sende melding. Prøv igjen senere.");
+      }
+    } catch (err) {
+      alert("Kunne ikke sende melding. Prøv igjen senere.");
+    }
   };
 
   const handleChange = (e) => {
@@ -115,83 +180,189 @@ export default function Kontakt() {
 
           <div className="contact-form-section">
             <h2>{formTitle}</h2>
-            <form onSubmit={handleSubmit} className="contact-form">
-              <div className="form-group">
-                <label htmlFor="name">Navn *</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="email">E-post *</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="phone">Telefon</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="subject">Emne *</label>
-                <select
-                  id="subject"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
+            
+            {/* Form type selector */}
+            <div style={{ marginBottom: "30px" }}>
+              <label htmlFor="form-type-selector" style={{ display: "block", marginBottom: "10px", fontWeight: "500" }}>
+                Velg type henvendelse:
+              </label>
+              <div className="form-type-selector" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => handleFormTypeChange("ny-kunde")}
+                  className={`btn ${formType === "ny-kunde" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ fontSize: "14px", padding: "10px" }}
                 >
-                  <option value="">Velg emne</option>
-                  <option value="trening">Generell trening</option>
-                  <option value="valp">Valp-trening</option>
-                  <option value="agility">Agility</option>
-                  <option value="atferd">Atferdsproblemer</option>
-                  <option value="booking">Booking av hall</option>
-                  <option value="annet">Annet</option>
-                </select>
+                  Ny kunde
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormTypeChange("kurs")}
+                  className={`btn ${formType === "kurs" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ fontSize: "14px", padding: "10px" }}
+                >
+                  Kurs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormTypeChange("seminar")}
+                  className={`btn ${formType === "seminar" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ fontSize: "14px", padding: "10px" }}
+                >
+                  Seminar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormTypeChange("trening")}
+                  className={`btn ${formType === "trening" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ fontSize: "14px", padding: "10px" }}
+                >
+                  Trening
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormTypeChange("atferd")}
+                  className={`btn ${formType === "atferd" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ fontSize: "14px", padding: "10px" }}
+                >
+                  Atferd
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormTypeChange("booking")}
+                  className={`btn ${formType === "booking" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ fontSize: "14px", padding: "10px" }}
+                >
+                  Booking
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormTypeChange("annet")}
+                  className={`btn ${formType === "annet" ? "btn-primary" : "btn-ghost"}`}
+                  style={{ fontSize: "14px", padding: "10px" }}
+                >
+                  Annet
+                </button>
               </div>
+            </div>
 
-              <div className="form-group">
-                <label htmlFor="message">Melding *</label>
-                <textarea
-                  id="message"
-                  name="message"
-                  value={formData.message}
-                  onChange={handleChange}
-                  required
-                  rows="5"
-                  className="form-input"
-                  placeholder="Beskriv ditt spørsmål eller behov..."
-                ></textarea>
+            {submitted ? (
+              <div style={{ padding: "20px", background: "#d4edda", borderRadius: "8px", textAlign: "center" }}>
+                <p style={{ color: "#155724", margin: 0 }}>Takk for din henvendelse! Vi kommer tilbake til deg snart.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitted(false);
+                    setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+                    setFormType("");
+                  }}
+                  className="btn btn-primary"
+                  style={{ marginTop: "15px" }}
+                >
+                  Send ny melding
+                </button>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="contact-form">
+                <div className="form-group">
+                  <label htmlFor="name">Navn *</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                    className="form-input"
+                  />
+                </div>
 
-              <button type="submit" className="btn btn-primary">
-                Send melding
-              </button>
-            </form>
+                <div className="form-group">
+                  <label htmlFor="email">E-post *</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="phone">Telefon</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="subject">Emne *</label>
+                  <select
+                    id="subject"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={(e) => {
+                      handleChange(e);
+                      // Update form type based on subject selection
+                      const subjectToType = {
+                        "Ny kunde-registrering": "ny-kunde",
+                        "Kurs": "kurs",
+                        "Seminar": "seminar",
+                        "Trening": "trening",
+                        "Hjelp til atferdsproblemer": "atferd",
+                        "Booking av hall": "booking",
+                        "Annet": "annet"
+                      };
+                      const newType = subjectToType[e.target.value] || "";
+                      setFormType(newType);
+                      setSearchParams(newType ? { type: newType } : {});
+                    }}
+                    required
+                    className="form-input"
+                  >
+                    <option value="">Velg emne</option>
+                    <option value="Ny kunde-registrering">Ny kunde-registrering</option>
+                    <option value="Kurs">Kurs</option>
+                    <option value="Seminar">Seminar</option>
+                    <option value="Trening">Trening</option>
+                    <option value="Hjelp til atferdsproblemer">Hjelp til atferdsproblemer</option>
+                    <option value="Booking av hall">Booking av hall</option>
+                    <option value="Annet">Annet</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="message">
+                    Melding {formData.subject === "Ny kunde-registrering" ? "(valgfritt)" : "*"}
+                  </label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    value={formData.message}
+                    onChange={handleChange}
+                    required={formData.subject !== "Ny kunde-registrering"}
+                    rows="5"
+                    className="form-input"
+                    placeholder={
+                      formData.subject === "Ny kunde-registrering"
+                        ? "Beskriv eventuelt hvorfor du ønsker å bli kunde..."
+                        : "Beskriv ditt spørsmål eller behov..."
+                    }
+                  ></textarea>
+                </div>
+
+                <button type="submit" className="btn btn-primary">
+                  Send melding
+                </button>
+              </form>
+            )}
           </div>
         </div>
 

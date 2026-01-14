@@ -30,6 +30,19 @@ function AdminPanel() {
     start_time: '',
     end_time: ''
   });
+  const [newsItems, setNewsItems] = useState([]);
+  const [editingNewsItem, setEditingNewsItem] = useState(null);
+  const [newsItemForm, setNewsItemForm] = useState({
+    title: '',
+    content: '',
+    excerpt: '',
+    item_type: 'nyhet',
+    event_date: '',
+    published: false,
+    featured: false,
+    image_url: ''
+  });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'content') {
@@ -40,6 +53,8 @@ function AdminPanel() {
       fetchBookings();
     } else if (activeTab === 'users') {
       fetchUsers();
+    } else if (activeTab === 'news') {
+      fetchNewsItems();
     }
   }, [activeTab]);
 
@@ -262,6 +277,169 @@ function AdminPanel() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchNewsItems = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/news`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Kunne ikke hente kurs og nyheter');
+      }
+      
+      const data = await response.json();
+      setNewsItems(data.items || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveNewsItem = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const url = editingNewsItem 
+        ? `${API}/api/news/${editingNewsItem.id}`
+        : `${API}/api/news`;
+      const method = editingNewsItem ? 'PUT' : 'POST';
+      
+      const body = {
+        ...newsItemForm,
+        event_date: newsItemForm.event_date ? new Date(newsItemForm.event_date).toISOString() : null
+      };
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Kunne ikke lagre kurs/nyhet');
+      }
+      
+      await fetchNewsItems();
+      setEditingNewsItem(null);
+      setNewsItemForm({
+        title: '',
+        content: '',
+        excerpt: '',
+        item_type: 'nyhet',
+        event_date: '',
+        published: false,
+        featured: false,
+        image_url: ''
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteNewsItem = async (itemId) => {
+    if (!window.confirm('Er du sikker på at du vil slette dette?')) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/news/${itemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Kunne ikke slette kurs/nyhet');
+      }
+      
+      await fetchNewsItems();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Ugyldig filtype. Tillatte typer: JPEG, PNG, GIF, WebP');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Bildet er for stort. Maks størrelse er 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API}/api/upload-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Kunne ikke laste opp bilde' }));
+        throw new Error(errorData.detail || 'Kunne ikke laste opp bilde');
+      }
+
+      const data = await response.json();
+      // Use full URL if API returns relative path
+      const imageUrl = data.url.startsWith('http') ? data.url : `${API}${data.url}`;
+      setNewsItemForm({ ...newsItemForm, image_url: imageUrl });
+    } catch (err) {
+      setError(err.message || 'Kunne ikke laste opp bilde');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const editNewsItem = (item) => {
+    setEditingNewsItem(item);
+    setNewsItemForm({
+      title: item.title || '',
+      content: item.content || '',
+      excerpt: item.excerpt || '',
+      item_type: item.item_type || 'nyhet',
+      event_date: item.event_date ? new Date(item.event_date).toISOString().slice(0, 16) : '',
+      published: item.published || false,
+      featured: item.featured || false,
+      image_url: item.image_url || ''
+    });
   };
 
   const editBooking = async (booking) => {
@@ -549,6 +727,12 @@ function AdminPanel() {
           onClick={() => setActiveTab('users')}
         >
           Brukere
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'news' ? 'active' : ''}`}
+          onClick={() => setActiveTab('news')}
+        >
+          Kurs & Nyheter
         </button>
       </div>
 
@@ -1204,6 +1388,267 @@ function AdminPanel() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'news' && (
+        <div className="news-management">
+          <div className="content-header">
+            <h2>Administrer kurs, seminarer og nyheter</h2>
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                setEditingNewsItem(null);
+                setNewsItemForm({
+                  title: '',
+                  content: '',
+                  excerpt: '',
+                  item_type: 'nyhet',
+                  event_date: '',
+                  published: false,
+                  featured: false,
+                  image_url: ''
+                });
+              }}
+            >
+              + Ny kurs/nyhet
+            </button>
+          </div>
+
+          {error && (
+            <div className="error-message" style={{ padding: '15px', background: '#fee', color: '#c33', borderRadius: '8px', marginBottom: '20px' }}>
+              {error}
+            </div>
+          )}
+
+          {loading && <div>Laster kurs og nyheter...</div>}
+
+          {/* News Items List */}
+          <div className="news-items-list">
+            {newsItems.length === 0 ? (
+              <div className="no-items">
+                <p>Ingen kurs eller nyheter opprettet ennå.</p>
+              </div>
+            ) : (
+              newsItems.map((item) => (
+                <div key={item.id} className="news-item-card" style={{ 
+                  border: '1px solid #ddd', 
+                  borderRadius: '8px', 
+                  padding: '20px', 
+                  marginBottom: '15px',
+                  background: item.published ? '#fff' : '#f9f9f9'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <h3 style={{ margin: 0 }}>{item.title}</h3>
+                        <span style={{ 
+                          fontSize: '12px', 
+                          padding: '4px 8px', 
+                          borderRadius: '4px',
+                          background: item.item_type === 'kurs' ? '#e3f2fd' : item.item_type === 'seminar' ? '#f3e5f5' : '#fff3e0',
+                          color: item.item_type === 'kurs' ? '#1976d2' : item.item_type === 'seminar' ? '#7b1fa2' : '#e65100'
+                        }}>
+                          {item.item_type === 'kurs' ? 'Kurs' : item.item_type === 'seminar' ? 'Seminar' : 'Nyhet'}
+                        </span>
+                        {item.published && (
+                          <span style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px', background: '#d4edda', color: '#155724' }}>
+                            Publisert
+                          </span>
+                        )}
+                        {item.featured && (
+                          <span style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '4px', background: '#fff3cd', color: '#856404' }}>
+                            Fremhevet
+                          </span>
+                        )}
+                      </div>
+                      {item.excerpt && <p style={{ color: '#666', marginBottom: '10px' }}>{item.excerpt}</p>}
+                      {item.event_date && (
+                        <p style={{ fontSize: '14px', color: '#999' }}>
+                          📅 {new Date(item.event_date).toLocaleDateString("no-NO", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        className="btn btn-sm btn-outline"
+                        onClick={() => editNewsItem(item)}
+                      >
+                        Rediger
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => deleteNewsItem(item.id)}
+                      >
+                        Slett
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* News Item Editor Modal */}
+      {editingNewsItem !== null && (
+        <div className="content-editor-modal" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="modal-content" style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '800px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h3>{editingNewsItem ? 'Rediger kurs/nyhet' : 'Ny kurs/nyhet'}</h3>
+            <form onSubmit={saveNewsItem}>
+              <div className="form-group">
+                <label>Tittel *</label>
+                <input
+                  type="text"
+                  value={newsItemForm.title}
+                  onChange={(e) => setNewsItemForm({ ...newsItemForm, title: e.target.value })}
+                  required
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Type *</label>
+                <select
+                  value={newsItemForm.item_type}
+                  onChange={(e) => setNewsItemForm({ ...newsItemForm, item_type: e.target.value })}
+                  required
+                  className="form-input"
+                >
+                  <option value="nyhet">Nyhet</option>
+                  <option value="kurs">Kurs</option>
+                  <option value="seminar">Seminar</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Kort beskrivelse (for forhåndsvisning)</label>
+                <textarea
+                  value={newsItemForm.excerpt}
+                  onChange={(e) => setNewsItemForm({ ...newsItemForm, excerpt: e.target.value })}
+                  rows="3"
+                  className="form-input"
+                  placeholder="Kort beskrivelse som vises i listen..."
+                />
+              </div>
+              <div className="form-group">
+                <label>Innhold * (HTML støttes)</label>
+                <textarea
+                  value={newsItemForm.content}
+                  onChange={(e) => setNewsItemForm({ ...newsItemForm, content: e.target.value })}
+                  rows="10"
+                  required
+                  className="form-input"
+                  placeholder="Fullt innhold..."
+                />
+              </div>
+              <div className="form-group">
+                <label>Bilde</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      style={{ flex: 1 }}
+                      className="form-input"
+                    />
+                    {uploadingImage && <span>Laster opp...</span>}
+                  </div>
+                  {newsItemForm.image_url && (
+                    <div style={{ marginTop: '10px' }}>
+                      <img 
+                        src={newsItemForm.image_url} 
+                        alt="Preview" 
+                        style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', objectFit: 'cover' }}
+                      />
+                    </div>
+                  )}
+                  <input
+                    type="url"
+                    value={newsItemForm.image_url}
+                    onChange={(e) => setNewsItemForm({ ...newsItemForm, image_url: e.target.value })}
+                    className="form-input"
+                    placeholder="Eller lim inn bilde-URL her..."
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Arrangementsdato (for kurs/seminar)</label>
+                <input
+                  type="datetime-local"
+                  value={newsItemForm.event_date}
+                  onChange={(e) => setNewsItemForm({ ...newsItemForm, event_date: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={newsItemForm.published}
+                    onChange={(e) => setNewsItemForm({ ...newsItemForm, published: e.target.checked })}
+                  />
+                  Publisert (synlig for alle)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={newsItemForm.featured}
+                    onChange={(e) => setNewsItemForm({ ...newsItemForm, featured: e.target.checked })}
+                  />
+                  Fremhevet (vises på forsiden)
+                </label>
+              </div>
+              <div className="form-actions" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button type="submit" className="btn btn-primary">Lagre</button>
+                <button 
+                  type="button" 
+                  className="btn btn-ghost" 
+                  onClick={() => {
+                    setEditingNewsItem(null);
+                    setNewsItemForm({
+                      title: '',
+                      content: '',
+                      excerpt: '',
+                      item_type: 'nyhet',
+                      event_date: '',
+                      published: false,
+                      featured: false,
+                      image_url: ''
+                    });
+                  }}
+                >
+                  Avbryt
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

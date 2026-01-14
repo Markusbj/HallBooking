@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from . import models, schemas, crud, database
 from .database import Base, engine, get_db
 from .models import User
-from .schemas import UserRead, UserCreate, UserUpdate, BookingCreate
+from .schemas import UserRead, UserCreate, UserUpdate, BookingCreate, NewsItemCreate, NewsItemUpdate, NewsItemRead
 from .auth import fastapi_users, auth_backend, current_active_user, create_db_and_tables
 from datetime import datetime, timedelta, date as date_type, timezone
 from typing import List, Dict, Any
@@ -15,6 +16,13 @@ import uuid
 import logging
 import time
 import os
+import shutil
+from pathlib import Path
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import shutil
+from pathlib import Path
 
 # Sett opp logging
 logging.basicConfig(
@@ -23,11 +31,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Create uploads directory if it doesn't exist
+UPLOAD_DIR = Path("uploads/images")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Starting HallBooking API...")
     await create_db_and_tables()
     logger.info("✅ Database tables created")
+    # Ensure upload directory exists
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info(f"✅ Upload directory ready: {UPLOAD_DIR}")
     yield
     logger.info("🛑 Shutting down HallBooking API...")
 
@@ -534,3 +549,168 @@ async def delete_blocked_time_api(blocked_time_id: str, user=Depends(current_act
     if not deleted_blocked_time:
         raise HTTPException(status_code=404, detail="Blocked time not found")
     return {"message": "Blocked time deleted successfully"}
+
+# Contact form API endpoint
+class ContactForm(BaseModel):
+    name: str
+    email: str
+    phone: Optional[str] = None
+    subject: str
+    message: str
+
+@app.post("/api/contact")
+async def submit_contact_form(contact: ContactForm):
+    """
+    Handle contact form submissions (kurs, seminar, trening, atferdsproblemer, etc.)
+    For now, this logs the message. In production, you would send an email here.
+    """
+    logger.info(f"📧 Contact form submission received:")
+    logger.info(f"   Name: {contact.name}")
+    logger.info(f"   Email: {contact.email}")
+    logger.info(f"   Phone: {contact.phone or 'N/A'}")
+    logger.info(f"   Subject: {contact.subject}")
+    logger.info(f"   Message: {contact.message}")
+    
+    # Send email to tgnrk@gmail.com
+    try:
+        recipient_email = "tgnrk@gmail.com"
+        
+        # Create email message
+        msg = MIMEMultipart()
+        msg['From'] = contact.email
+        msg['To'] = recipient_email
+        msg['Subject'] = f"Kontaktskjema: {contact.subject}"
+        
+        # Create email body
+        body = f"""
+Ny henvendelse fra kontaktskjemaet:
+
+Navn: {contact.name}
+E-post: {contact.email}
+Telefon: {contact.phone or 'Ikke oppgitt'}
+Emne: {contact.subject}
+
+Melding:
+{contact.message}
+
+---
+Dette er en automatisk melding fra TG Tromsø kontaktskjema.
+"""
+        
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # Send email using SMTP (Gmail)
+        # Note: For production, you should use environment variables for credentials
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER", "")
+        smtp_password = os.getenv("SMTP_PASSWORD", "")
+        
+        if smtp_user and smtp_password:
+            try:
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                text = msg.as_string()
+                server.sendmail(contact.email, recipient_email, text)
+                server.quit()
+                logger.info(f"✅ Email sent successfully to {recipient_email}")
+            except Exception as e:
+                logger.error(f"❌ Error sending email: {e}")
+                # Don't fail the request if email fails, just log it
+        else:
+            logger.warning("⚠️ SMTP credentials not configured. Email not sent. Set SMTP_USER and SMTP_PASSWORD environment variables.")
+        
+    except Exception as e:
+        logger.error(f"❌ Error processing email: {e}")
+        # Don't fail the request if email fails
+    
+    return {
+        "message": "Takk for din henvendelse! Vi kommer tilbake til deg snart.",
+        "success": True
+    }
+
+# News Items API endpoints
+@app.get("/api/news")
+async def get_news_items_api(
+    item_type: Optional[str] = None,
+    published: Optional[bool] = None,
+    featured: Optional[bool] = None,
+    limit: Optional[int] = None,
+    db: Session = Depends(database.get_db)
+):
+    """Get news items (kurs, seminarer, nyheter) with optional filters"""
+    items = await crud.get_news_items(db, item_type=item_type, published=published, featured=featured, limit=limit)
+    return {"items": items}
+
+@app.get("/api/news/{item_id}")
+async def get_news_item_api(item_id: str, db: Session = Depends(database.get_db)):
+    """Get a single news item by ID"""
+    item = await crud.get_news_item(db, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="News item not found")
+    return item
+
+@app.post("/api/news")
+async def create_news_item_api(news_item: NewsItemCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Create new news item (admin only)"""
+    _require_admin(user)
+    user_id = str(getattr(user, "id", ""))
+    new_item = await crud.create_news_item(db, news_item, user_id)
+    return new_item
+
+@app.put("/api/news/{item_id}")
+async def update_news_item_api(item_id: str, news_item: NewsItemUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Update news item (admin only)"""
+    _require_admin(user)
+    user_id = str(getattr(user, "id", ""))
+    updated_item = await crud.update_news_item(db, item_id, news_item, user_id)
+    if not updated_item:
+        raise HTTPException(status_code=404, detail="News item not found")
+    return updated_item
+
+@app.delete("/api/news/{item_id}")
+async def delete_news_item_api(item_id: str, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+    """Delete news item (admin only)"""
+    _require_admin(user)
+    deleted_item = await crud.delete_news_item(db, item_id)
+    if not deleted_item:
+        raise HTTPException(status_code=404, detail="News item not found")
+    return {"message": "News item deleted successfully"}
+
+@app.post("/api/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    user=Depends(current_active_user)
+):
+    """Upload an image file (admin only)"""
+    _require_admin(user)
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}")
+    
+    # Generate unique filename
+    file_ext = Path(file.filename).suffix
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = UPLOAD_DIR / unique_filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Return URL path (relative to static files)
+        image_url = f"/uploads/images/{unique_filename}"
+        logger.info(f"✅ Image uploaded: {image_url}")
+        return {"url": image_url, "filename": unique_filename}
+    except Exception as e:
+        logger.error(f"❌ Error uploading image: {e}")
+        raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
+
+# Mount static files directory to serve uploaded images
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Mount static files directory to serve uploaded images
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

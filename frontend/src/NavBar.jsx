@@ -17,6 +17,7 @@ export default function NavBar() {
   const isLoggedIn = !!localStorage.getItem("token");
   const isAdmin = localStorage.getItem("isAdmin") === "true";
   const ref = useRef(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add("dark");
@@ -74,17 +75,32 @@ export default function NavBar() {
     <nav className="app-navbar" role="navigation" aria-label="Hovednavigasjon">
       <div className="app-navbar-inner">
         <div className="nav-left">
-          <Link to="/" className="nav-link">Hjem</Link>
-          <Link to="/bookings" className="nav-link">Treningshaller</Link>
-          <Link to="/om-oss" className="nav-link">Om oss</Link>
-          <Link to="/instruktorer" className="nav-link">Instruktører</Link>
-          <Link to="/kontakt" className="nav-link">Kontakt</Link>
-          {isLoggedIn && (
-            <Link to="/oversikt" className="nav-link">Oversikt</Link>
-          )}
-          {isLoggedIn && isAdmin && (
-            <Link to="/admin" className="nav-link">Admin</Link>
-          )}
+          <button 
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div className={`nav-links ${mobileMenuOpen ? "mobile-open" : ""}`}>
+            <Link to="/" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Hjem</Link>
+            {isLoggedIn && (
+              <Link to="/bookings" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Treningshall</Link>
+            )}
+            <Link to="/om-oss" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Om oss</Link>
+            <Link to="/instruktorer" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Instruktører</Link>
+            <Link to="/nyheter" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Kurs & Nyheter</Link>
+            <Link to="/kontakt" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Kontakt</Link>
+            {isLoggedIn && (
+              <Link to="/oversikt" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Oversikt</Link>
+            )}
+            {isLoggedIn && isAdmin && (
+              <Link to="/admin" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Admin</Link>
+            )}
+          </div>
         </div>
 
         <div 

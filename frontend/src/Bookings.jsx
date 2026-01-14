@@ -61,6 +61,10 @@ export default function Bookings({ token: propToken }) {
   const [showWeekSelector, setShowWeekSelector] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [dropdownRef, setDropdownRef] = useState(null);
+  const [panelPosition, setPanelPosition] = useState(() => {
+    // Load from localStorage or default to 'bottom'
+    return localStorage.getItem('bookingPanelPosition') || 'bottom';
+  });
 
   useEffect(() => { fetchWeek(); /* eslint-disable-next-line */ }, [weekStart]);
 
@@ -181,6 +185,13 @@ export default function Bookings({ token: propToken }) {
       setDropdownPosition(finalPosition);
     }
     setShowWeekSelector(!showWeekSelector);
+  }
+
+  function togglePanelPosition() {
+    const newPosition = panelPosition === 'top' ? 'bottom' : 'top';
+    setPanelPosition(newPosition);
+    localStorage.setItem('bookingPanelPosition', newPosition);
+    console.log('Panel position changed to:', newPosition);
   }
 
   async function createBooking() {
@@ -348,14 +359,110 @@ export default function Bookings({ token: propToken }) {
         </div>
 
         <div className="week-info">
-          <h2>Treningshaller</h2>
+          <h2>Treningshall</h2>
           <p className="week-range">{isoDate(weekStart)} — {isoDate(weekEnd)}</p>
         </div>
       </div>
 
-      <div className="bookings-content">
+      <div className={`bookings-content ${panelPosition === 'top' ? 'panel-top' : ''}`}>
+        {panelPosition === 'top' && (
+          <aside className="booking-panel">
+            <div className="panel-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3>Booking</h3>
+                <button 
+                  className="panel-position-toggle"
+                  onClick={togglePanelPosition}
+                  title="Flytt booking-boksen ned"
+                  aria-label="Flytt booking-boksen ned"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                  </svg>
+                </button>
+              </div>
+              {selected ? (
+                <div className="selected-time">
+                  <div className="time-info">
+                    <div className="time-date">{new Date(selected.date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</div>
+                    <div className="time-range">{pad(selected.hour)}:00 — {pad((selected.hour+1)%24)}:00</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="no-selection">
+                  <p>Velg en tid i kalenderen for å booke</p>
+                </div>
+              )}
+            </div>
+
+            {selected && (
+              <div className="panel-section">
+                <label className="form-label">Treningshall</label>
+                <input 
+                  value={hall} 
+                  onChange={(e)=>setHall(e.target.value)} 
+                  className="form-input"
+                  placeholder="F.eks. Hovedhallen"
+                />
+              </div>
+            )}
+
+            {selected && selected.slot && selected.slot.booking_ids && selected.slot.booking_ids.length > 0 ? (
+              <div className="panel-section">
+                <h4>Eksisterende bookinger</h4>
+                <div className="booking-list">
+                  {selected.slot.booking_ids.map(id => (
+                    <div key={id} className="booking-item">
+                      <span className="booking-id">{id}</span>
+                      {isAdmin && (
+                        <button 
+                          className="delete-btn" 
+                          onClick={() => deleteBooking(id)}
+                          title="Slett booking"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : selected ? (
+              <div className="panel-section">
+                <button 
+                  className="book-btn" 
+                  onClick={createBooking} 
+                  disabled={creating || !selected}
+                >
+                  {creating ? "Oppretter..." : "Book treningshall"}
+                </button>
+              </div>
+            ) : null}
+
+            <div className="panel-section">
+              <h4>Status</h4>
+              <div className="legend">
+                <div className="legend-item">
+                  <div className="legend-color available"></div>
+                  <span>Ledig</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color booked"></div>
+                  <span>Opptatt</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color blocked"></div>
+                  <span>Blokkert</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        )}
+
         <div className="calendar-section">
-          {loading && <div className="loading-state">Henter treningshaller...</div>}
+          {loading && <div className="loading-state">Henter treningshall...</div>}
           {error && <div className="error-msg">{error}</div>}
 
           <div className="calendar-grid" onClick={() => onDayHeaderClick(weekStart.toISOString().slice(0, 10))}>
@@ -398,87 +505,101 @@ export default function Bookings({ token: propToken }) {
           </div>
         </div>
 
-        <aside className="booking-panel">
-          <div className="panel-section">
-            <h3>Booking</h3>
-            {selected ? (
-              <div className="selected-time">
-                <div className="time-info">
-                  <div className="time-date">{new Date(selected.date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</div>
-                  <div className="time-range">{pad(selected.hour)}:00 — {pad((selected.hour+1)%24)}:00</div>
-                </div>
+        {panelPosition === 'bottom' && (
+          <aside className="booking-panel">
+            <div className="panel-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3>Booking</h3>
+                <button 
+                  className="panel-position-toggle"
+                  onClick={togglePanelPosition}
+                  title="Flytt booking-boksen opp"
+                  aria-label="Flytt booking-boksen opp"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41z"/>
+                  </svg>
+                </button>
               </div>
-            ) : (
-              <div className="no-selection">
-                <p>Velg en tid i kalenderen for å booke</p>
+              {selected ? (
+                <div className="selected-time">
+                  <div className="time-info">
+                    <div className="time-date">{new Date(selected.date).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</div>
+                    <div className="time-range">{pad(selected.hour)}:00 — {pad((selected.hour+1)%24)}:00</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="no-selection">
+                  <p>Velg en tid i kalenderen for å booke</p>
+                </div>
+              )}
+            </div>
+
+            {selected && (
+              <div className="panel-section">
+                <label className="form-label">Treningshall</label>
+                <input 
+                  value={hall} 
+                  onChange={(e)=>setHall(e.target.value)} 
+                  className="form-input"
+                  placeholder="F.eks. Hovedhallen"
+                />
               </div>
             )}
-          </div>
 
-          {selected && (
-            <div className="panel-section">
-              <label className="form-label">Treningshall</label>
-              <input 
-                value={hall} 
-                onChange={(e)=>setHall(e.target.value)} 
-                className="form-input"
-                placeholder="F.eks. Hovedhallen"
-              />
-            </div>
-          )}
+            {selected && selected.slot && selected.slot.booking_ids && selected.slot.booking_ids.length > 0 ? (
+              <div className="panel-section">
+                <h4>Eksisterende bookinger</h4>
+                <div className="booking-list">
+                  {selected.slot.booking_ids.map(id => (
+                    <div key={id} className="booking-item">
+                      <span className="booking-id">{id}</span>
+                      {isAdmin && (
+                        <button 
+                          className="delete-btn" 
+                          onClick={() => deleteBooking(id)}
+                          title="Slett booking"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : selected ? (
+              <div className="panel-section">
+                <button 
+                  className="book-btn" 
+                  onClick={createBooking} 
+                  disabled={creating || !selected}
+                >
+                  {creating ? "Oppretter..." : "Book treningshall"}
+                </button>
+              </div>
+            ) : null}
 
-          {selected && selected.slot && selected.slot.booking_ids && selected.slot.booking_ids.length > 0 ? (
             <div className="panel-section">
-              <h4>Eksisterende bookinger</h4>
-              <div className="booking-list">
-                {selected.slot.booking_ids.map(id => (
-                  <div key={id} className="booking-item">
-                    <span className="booking-id">{id}</span>
-                    {isAdmin && (
-                      <button 
-                        className="delete-btn" 
-                        onClick={() => deleteBooking(id)}
-                        title="Slett booking"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <h4>Status</h4>
+              <div className="legend">
+                <div className="legend-item">
+                  <div className="legend-color available"></div>
+                  <span>Ledig</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color booked"></div>
+                  <span>Opptatt</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color blocked"></div>
+                  <span>Blokkert</span>
+                </div>
               </div>
             </div>
-          ) : selected ? (
-            <div className="panel-section">
-              <button 
-                className="book-btn" 
-                onClick={createBooking} 
-                disabled={creating || !selected}
-              >
-                {creating ? "Oppretter..." : "Book treningshall"}
-              </button>
-            </div>
-          ) : null}
-
-          <div className="panel-section">
-            <h4>Status</h4>
-            <div className="legend">
-              <div className="legend-item">
-                <div className="legend-color available"></div>
-                <span>Ledig</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color booked"></div>
-                <span>Opptatt</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color blocked"></div>
-                <span>Blokkert</span>
-              </div>
-            </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
 
       {/* Top-left expanded day panel */}

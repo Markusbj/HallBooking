@@ -202,3 +202,75 @@ async def is_time_blocked(db: AsyncSession, start_time: datetime, end_time: date
                 return True, blocked
     
     return False, None
+
+# News Items CRUD operations
+async def get_news_items(db: AsyncSession, item_type: str = None, published: bool = None, featured: bool = None, limit: int = None):
+    """Get news items with optional filters"""
+    query = select(models.NewsItem)
+    
+    if item_type:
+        query = query.filter(models.NewsItem.item_type == item_type)
+    if published is not None:
+        query = query.filter(models.NewsItem.published == published)
+    if featured is not None:
+        query = query.filter(models.NewsItem.featured == featured)
+    
+    query = query.order_by(models.NewsItem.event_date.desc().nulls_last(), models.NewsItem.created_at.desc())
+    
+    if limit:
+        query = query.limit(limit)
+    
+    result = await db.execute(query)
+    return result.scalars().all()
+
+async def get_news_item(db: AsyncSession, item_id: str):
+    """Get a single news item by ID"""
+    result = await db.execute(select(models.NewsItem).filter(models.NewsItem.id == item_id))
+    return result.scalar_one_or_none()
+
+async def create_news_item(db: AsyncSession, news_item: schemas.NewsItemCreate, user_id: str):
+    """Create new news item"""
+    db_news_item = models.NewsItem(
+        title=news_item.title,
+        content=news_item.content,
+        excerpt=news_item.excerpt,
+        item_type=news_item.item_type,
+        event_date=news_item.event_date,
+        published=news_item.published,
+        featured=news_item.featured,
+        image_url=news_item.image_url,
+        created_by=user_id
+    )
+    db.add(db_news_item)
+    await db.commit()
+    await db.refresh(db_news_item)
+    return db_news_item
+
+async def update_news_item(db: AsyncSession, item_id: str, news_item: schemas.NewsItemUpdate, user_id: str):
+    """Update existing news item"""
+    result = await db.execute(select(models.NewsItem).filter(models.NewsItem.id == item_id))
+    db_news_item = result.scalar_one_or_none()
+    if not db_news_item:
+        return None
+    
+    update_data = news_item.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_news_item, field, value)
+    
+    db_news_item.updated_at = datetime.now()
+    
+    db.add(db_news_item)
+    await db.commit()
+    await db.refresh(db_news_item)
+    return db_news_item
+
+async def delete_news_item(db: AsyncSession, item_id: str):
+    """Delete news item"""
+    result = await db.execute(select(models.NewsItem).filter(models.NewsItem.id == item_id))
+    db_news_item = result.scalar_one_or_none()
+    if not db_news_item:
+        return None
+    
+    await db.delete(db_news_item)
+    await db.commit()
+    return db_news_item
