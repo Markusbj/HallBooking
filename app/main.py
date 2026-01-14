@@ -108,6 +108,10 @@ async def log_requests(request: Request, call_next):
     process_time = time.time() - start_time
     logger.info(f"📤 Response: {response.status_code} ({process_time:.3f}s)")
     return response
+
+# Mount static files directory to serve uploaded images (must come before routes)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 # Auth-rutere
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
@@ -708,9 +712,3 @@ async def upload_image(
     except Exception as e:
         logger.error(f"❌ Error uploading image: {e}")
         raise HTTPException(status_code=500, detail=f"Error uploading image: {str(e)}")
-
-# Mount static files directory to serve uploaded images
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-# Mount static files directory to serve uploaded images
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
