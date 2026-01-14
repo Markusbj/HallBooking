@@ -1511,7 +1511,7 @@ function AdminPanel() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000
+          zIndex: 20000
         }}>
           <div className="modal-content" style={{
             background: '#fff',
