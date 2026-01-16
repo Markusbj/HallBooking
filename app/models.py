@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
 from .database import Base
 import uuid
 from sqlalchemy import String
@@ -12,7 +12,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     
     full_name: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(length=20), nullable=True)
-    privacy_accepted: Mapped[bool] = mapped_column(default=False)  # GDPR privacy policy acceptance
+    privacy_accepted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # GDPR privacy policy acceptance
     privacy_accepted_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # When privacy was accepted
 
 class PageContent(Base):
