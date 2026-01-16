@@ -145,25 +145,42 @@ async def update_current_user(
     from datetime import timezone
     
     # Convert update data to dict
-    update_data = user_update.dict(exclude_unset=True)
+    # Use model_dump for Pydantic v2 compatibility, fallback to dict for v1
+    if hasattr(user_update, 'model_dump'):
+        update_data = user_update.model_dump(exclude_unset=True)
+    else:
+        update_data = user_update.dict(exclude_unset=True)
     
     # Handle privacy_accepted_date datetime conversion
+    # Pydantic may convert ISO strings to timezone-aware datetime objects
     if 'privacy_accepted_date' in update_data and update_data['privacy_accepted_date'] is not None:
         date_value = update_data['privacy_accepted_date']
+        
+        # Always convert to naive UTC datetime for PostgreSQL TIMESTAMP WITHOUT TIME ZONE
         if isinstance(date_value, str):
             # Parse ISO string to datetime
             try:
                 dt = datetime.fromisoformat(date_value.replace('Z', '+00:00'))
-                # Convert to UTC naive datetime (PostgreSQL TIMESTAMP WITHOUT TIME ZONE)
+                # Convert to UTC naive datetime
                 if dt.tzinfo is not None:
                     dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
                 update_data['privacy_accepted_date'] = dt
-            except (ValueError, AttributeError):
-                pass
+            except (ValueError, AttributeError) as e:
+                logger.warning(f"Failed to parse datetime string: {e}")
+                # Remove invalid date if parsing fails
+                del update_data['privacy_accepted_date']
         elif isinstance(date_value, datetime):
-            # If already a datetime object, ensure it's naive
+            # If already a datetime object, ensure it's naive UTC
+            original_tzinfo = date_value.tzinfo
             if date_value.tzinfo is not None:
-                update_data['privacy_accepted_date'] = date_value.astimezone(timezone.utc).replace(tzinfo=None)
+                # Convert timezone-aware datetime to naive UTC
+                naive_dt = date_value.astimezone(timezone.utc).replace(tzinfo=None)
+                update_data['privacy_accepted_date'] = naive_dt
+                logger.debug(f"Converted timezone-aware datetime (tzinfo={original_tzinfo}) to naive UTC")
+            else:
+                # Already naive, use as-is
+                update_data['privacy_accepted_date'] = date_value
+                logger.debug("Datetime is already naive, using as-is")
     
     # Update user using crud helper
     updated_user = await crud.update_user_profile(db, user.id, update_data)
