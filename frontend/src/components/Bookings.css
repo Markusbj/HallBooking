@@ -472,6 +472,7 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 0; /* Prevent grid overflow */
 }
 
 .calendar-grid:hover {
@@ -1082,6 +1083,109 @@
   }
 }
 
+/* Desktop/PC optimizations - better spacing and layout for larger screens */
+@media (min-width: 1400px) {
+  .time-slots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding: 20px;
+  }
+  
+  .day-card {
+    min-width: 180px;
+  }
+  
+  .day-header {
+    padding: 18px 16px;
+  }
+  
+  .day-name {
+    font-size: 15px;
+  }
+  
+  .day-date {
+    font-size: 13px;
+  }
+  
+  .time-slot {
+    min-height: 70px;
+    padding: 16px 12px;
+  }
+  
+  .time-text {
+    font-size: 16px;
+  }
+  
+  .calendar-grid {
+    gap: 18px;
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .time-slots {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    padding: 24px;
+  }
+  
+  .calendar-grid {
+    gap: 22px;
+    padding: 24px;
+  }
+  
+  .day-card {
+    min-width: 200px;
+  }
+  
+  .time-slot {
+    min-height: 75px;
+    padding: 18px 14px;
+  }
+  
+  .bookings-container {
+    padding: calc(var(--navbar-height) + 48px) 48px 48px 48px;
+  }
+  
+  .bookings-content {
+    gap: 48px;
+  }
+  
+  .booking-panel {
+    width: 450px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .bookings-container {
+    max-width: 2000px;
+  }
+  
+  .calendar-grid {
+    gap: 24px;
+    padding: 28px;
+  }
+  
+  .day-card {
+    min-width: 220px;
+  }
+  
+  .time-slots {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    padding: 28px;
+  }
+  
+  .time-slot {
+    min-height: 80px;
+    padding: 20px 16px;
+  }
+  
+  .time-text {
+    font-size: 17px;
+  }
+}
+
 @media (max-width: 900px) {
   .calendar-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -1090,7 +1194,7 @@
   
   .bookings-content {
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
   }
   
   .bookings-content.panel-top {
@@ -1099,7 +1203,7 @@
   
   .bookings-content.panel-top .booking-panel {
     order: -1;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   
   .booking-panel {
@@ -1113,6 +1217,7 @@
     gap: 20px;
     align-items: flex-start;
     padding: 20px 24px;
+    margin-bottom: 20px;
   }
   
   .week-navigation {
@@ -1164,7 +1269,15 @@
   
   .bookings-header {
     padding: 16px 20px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
+  }
+  
+  .bookings-content {
+    gap: 12px;
+  }
+  
+  .bookings-content.panel-top .booking-panel {
+    margin-bottom: 12px;
   }
   
   .week-navigation {
