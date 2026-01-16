@@ -16,7 +16,7 @@ passlib = {extras = ["bcrypt"], version = "*"}
 python-multipart = "*"
 pydantic-settings = "*"
 aiosqlite = "*"
-setuptools = "*"
+setuptools = "<81"
 bcrypt = "==4.0.1"
 tzlocal = "*"
 

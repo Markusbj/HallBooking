@@ -14,7 +14,7 @@ passlib[bcrypt]
 python-multipart
 pydantic-settings
 aiosqlite
-setuptools
+setuptools<81
 bcrypt==4.0.1
 tzlocal
 psycopg2-binary
