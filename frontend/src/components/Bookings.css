@@ -1083,6 +1083,40 @@
   }
 }
 
+/* Smaller time slots on desktop to give more space to calendar */
+@media (min-width: 901px) {
+  .time-slots {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .time-slot {
+    padding: 10px 6px;
+    min-height: 50px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  
+  .time-text {
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  
+  .booking-count {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+    top: 3px;
+    right: 3px;
+  }
+  
+  .time-slot.booked .booking-count {
+    width: 14px;
+    height: 14px;
+    font-size: 8px;
+  }
+}
+
 @media (max-width: 900px) {
   .calendar-grid {
     grid-template-columns: repeat(3, 1fr);
