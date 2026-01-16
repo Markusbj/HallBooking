@@ -1083,61 +1083,6 @@
   }
 }
 
-/* Better readability for time slots on desktop (over 900px) */
-@media (min-width: 901px) {
-  .time-slots {
-    padding: 18px;
-    gap: 14px;
-  }
-  
-  .time-slot {
-    padding: 16px 10px;
-    min-height: 70px;
-    font-size: 15px;
-  }
-  
-  .time-text {
-    font-size: 16px;
-    letter-spacing: 0.03em;
-  }
-}
-
-@media (min-width: 1200px) {
-  .time-slots {
-    padding: 20px;
-    gap: 16px;
-  }
-  
-  .time-slot {
-    padding: 18px 12px;
-    min-height: 75px;
-    font-size: 15px;
-  }
-  
-  .time-text {
-    font-size: 17px;
-    letter-spacing: 0.03em;
-  }
-}
-
-@media (min-width: 1600px) {
-  .time-slots {
-    padding: 24px;
-    gap: 18px;
-  }
-  
-  .time-slot {
-    padding: 20px 14px;
-    min-height: 80px;
-    font-size: 16px;
-  }
-  
-  .time-text {
-    font-size: 18px;
-    letter-spacing: 0.04em;
-  }
-}
-
 @media (max-width: 900px) {
   .calendar-grid {
     grid-template-columns: repeat(3, 1fr);
