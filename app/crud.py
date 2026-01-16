@@ -283,3 +283,83 @@ async def delete_news_item(db: AsyncSession, item_id: str):
     await db.delete(db_news_item)
     await db.commit()
     return db_news_item
+
+# User Session CRUD operations
+async def create_user_session(db: AsyncSession, user_id: str, session_token: str, device_info: str = None, expires_in_minutes: int = 25):
+    """Create a new user session"""
+    from datetime import timedelta
+    
+    expires_at = datetime.now() + timedelta(minutes=expires_in_minutes)
+    
+    db_session = models.UserSession(
+        user_id=user_id,
+        session_token=session_token,
+        device_info=device_info,
+        expires_at=expires_at
+    )
+    db.add(db_session)
+    await db.commit()
+    await db.refresh(db_session)
+    return db_session
+
+async def get_user_sessions(db: AsyncSession, user_id: str, active_only: bool = True):
+    """Get all sessions for a user"""
+    query = select(models.UserSession).filter(models.UserSession.user_id == user_id)
+    if active_only:
+        query = query.filter(models.UserSession.expires_at > datetime.now())
+    query = query.order_by(models.UserSession.last_activity.desc())
+    
+    result = await db.execute(query)
+    return result.scalars().all()
+
+async def get_user_session_by_token(db: AsyncSession, session_token: str):
+    """Get a session by token"""
+    result = await db.execute(
+        select(models.UserSession)
+        .filter(models.UserSession.session_token == session_token)
+        .filter(models.UserSession.expires_at > datetime.now())
+    )
+    return result.scalar_one_or_none()
+
+async def update_session_activity(db: AsyncSession, session_token: str):
+    """Update last activity time for a session"""
+    session = await get_user_session_by_token(db, session_token)
+    if session:
+        session.last_activity = datetime.now()
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+    return session
+
+async def delete_user_session(db: AsyncSession, session_token: str):
+    """Delete a user session"""
+    result = await db.execute(select(models.UserSession).filter(models.UserSession.session_token == session_token))
+    db_session = result.scalar_one_or_none()
+    if not db_session:
+        return None
+    
+    await db.delete(db_session)
+    await db.commit()
+    return db_session
+
+async def delete_expired_sessions(db: AsyncSession):
+    """Delete expired sessions"""
+    result = await db.execute(select(models.UserSession).filter(models.UserSession.expires_at <= datetime.now()))
+    expired_sessions = result.scalars().all()
+    for session in expired_sessions:
+        await db.delete(session)
+    await db.commit()
+    return len(expired_sessions)
+
+async def enforce_session_limit(db: AsyncSession, user_id: str, max_sessions: int = 2):
+    """Enforce maximum number of active sessions per user. Returns number of sessions deleted."""
+    sessions = await get_user_sessions(db, user_id, active_only=True)
+    if len(sessions) >= max_sessions:
+        # Delete oldest sessions, keeping the newest ones
+        sessions.sort(key=lambda s: s.last_activity, reverse=True)
+        sessions_to_delete = sessions[max_sessions - 1:]
+        for session in sessions_to_delete:
+            await db.delete(session)
+        await db.commit()
+        return len(sessions_to_delete)
+    return 0

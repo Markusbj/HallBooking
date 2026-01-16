@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -131,6 +131,110 @@ app.include_router(
     prefix="/users",
     tags=["users"],
 )
+
+# Session management endpoints
+@app.post("/api/auth/register-session")
+async def register_session(
+    request: Request,
+    user=Depends(current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Register a new session for the logged-in user.
+    Enforces maximum 2 active sessions per user.
+    """
+    import hashlib
+    
+    # Get token from Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    # Get device info from request
+    user_agent = request.headers.get("User-Agent", "Unknown")
+    
+    # Enforce session limit (max 2 sessions)
+    await crud.enforce_session_limit(db, str(user.id), max_sessions=2)
+    
+    # Create new session
+    session = await crud.create_user_session(
+        db=db,
+        user_id=str(user.id),
+        session_token=token_hash,
+        device_info=user_agent,
+        expires_in_minutes=25
+    )
+    
+    return {
+        "session_id": session.id,
+        "message": "Session registered successfully"
+    }
+
+@app.post("/api/auth/update-session")
+async def update_session(
+    request: Request,
+    user=Depends(current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """Update session activity timestamp"""
+    import hashlib
+    
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+    
+    token = auth_header.replace("Bearer ", "")
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    session = await crud.update_session_activity(db, token_hash)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    return {"message": "Session activity updated"}
+
+@app.get("/api/auth/sessions")
+async def get_sessions(
+    user=Depends(current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """Get all active sessions for the current user"""
+    sessions = await crud.get_user_sessions(db, str(user.id), active_only=True)
+    return {
+        "sessions": [
+            {
+                "id": str(s.id),
+                "device_info": s.device_info,
+                "last_activity": s.last_activity.isoformat(),
+                "created_at": s.created_at.isoformat()
+            }
+            for s in sessions
+        ]
+    }
+
+@app.delete("/api/auth/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    user=Depends(current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """Delete a specific session (user can only delete their own sessions)"""
+    from sqlalchemy import select
+    
+    result = await db.execute(
+        select(models.UserSession)
+        .filter(models.UserSession.id == session_id)
+        .filter(models.UserSession.user_id == str(user.id))
+    )
+    session = result.scalar_one_or_none()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    await crud.delete_user_session(db, session.session_token)
+    return {"message": "Session deleted successfully"}
 
 @app.get("/")
 async def root():
@@ -443,6 +547,75 @@ def generate_password(length=12):
     password = ''.join(secrets.choice(alphabet) for i in range(length))
     return password
 
+async def send_user_credentials_email(user_email: str, user_name: str, password: str, is_admin: bool):
+    """
+    Send email to new user with their login credentials.
+    This function will not fail the request if email sending fails.
+    """
+    try:
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER", "")
+        smtp_password = os.getenv("SMTP_PASSWORD", "")
+        
+        if not smtp_user or not smtp_password:
+            logger.warning("⚠️ SMTP credentials not configured. Email not sent. Set SMTP_USER and SMTP_PASSWORD environment variables.")
+            return
+        
+        # Create email message
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = user_email
+        msg['Subject'] = "Velkommen til TG Tromsø - Dine innloggingsdetaljer"
+        
+        role_text = "administrator" if is_admin else "standard bruker"
+        
+        # Create email body
+        body = f"""
+Hei {user_name or 'der'}!
+
+Din brukerkonto hos TG Tromsø har blitt opprettet.
+
+Innloggingsdetaljer:
+E-post: {user_email}
+Passord: {password}
+Rolle: {role_text}
+
+Viktig:
+- Dette passordet er midlertidig. Vi anbefaler at du endrer det ved første innlogging.
+- Du kan endre passordet i kontoinnstillingene etter at du har logget inn.
+
+For å logge inn, gå til innloggingssiden og bruk e-postadressen og passordet over.
+
+Hvis du har spørsmål, ta kontakt med oss.
+
+Med vennlig hilsen,
+TG Tromsø
+
+---
+Dette er en automatisk e-post fra TG Tromsø.
+Ikke svar på denne e-posten.
+"""
+        
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # Send email using SMTP
+        try:
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            text = msg.as_string()
+            server.sendmail(smtp_user, user_email, text)
+            server.quit()
+            logger.info(f"✅ Welcome email sent successfully to {user_email}")
+        except Exception as e:
+            logger.error(f"❌ Error sending welcome email to {user_email}: {e}")
+            # Don't fail the request if email fails, just log it
+            
+    except Exception as e:
+        logger.error(f"❌ Error processing welcome email for {user_email}: {e}")
+        # Don't fail the request if email fails
+
 class CreateUserRequest(BaseModel):
     email: str
     full_name: Optional[str] = None
@@ -452,6 +625,7 @@ class CreateUserRequest(BaseModel):
 @app.post("/api/admin/users")
 async def create_user_admin(
     user_data: CreateUserRequest, 
+    background_tasks: BackgroundTasks,
     user=Depends(current_active_user), 
     db: Session = Depends(database.get_db)
 ):
@@ -489,6 +663,16 @@ async def create_user_admin(
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
+    
+    # Send welcome email with credentials to the new user in the background
+    # This won't block the request and won't fail it if email sending fails
+    background_tasks.add_task(
+        send_user_credentials_email,
+        user_email=new_user.email,
+        user_name=new_user.full_name or "Bruker",
+        password=generated_password,
+        is_admin=user_data.is_superuser
+    )
     
     return {
         "user": {
@@ -682,9 +866,9 @@ async def submit_contact_form(contact: ContactForm):
     logger.info(f"   Subject: {contact.subject}")
     logger.info(f"   Message: {contact.message}")
     
-    # Send email to tgnrk@gmail.com
+    # Send email to configured recipient (default from environment variable)
     try:
-        recipient_email = "tgnrk@gmail.com"
+        recipient_email = os.getenv("CONTACT_RECIPIENT_EMAIL", "tgnrk@gmail.com")
         
         # Create email message
         msg = MIMEMultipart()

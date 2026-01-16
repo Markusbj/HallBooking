@@ -1442,8 +1442,13 @@ function AdminPanel() {
                   <p><strong>E-post:</strong> {newUserForm.email}</p>
                   <p><strong>Rolle:</strong> {newUserForm.is_superuser ? 'Administrator' : 'Standard bruker'}</p>
                   <p><strong>Passord:</strong> <code style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '14px' }}>{createdUserPassword}</code></p>
+                  <div style={{ background: '#e3f2fd', padding: '10px', borderRadius: '4px', marginTop: '10px' }}>
+                    <p style={{ fontSize: '13px', color: '#1976d2', margin: 0 }}>
+                      📧 E-post med innloggingsdetaljer er sendt til {newUserForm.email}
+                    </p>
+                  </div>
                   <p style={{ fontSize: '13px', color: '#666', marginTop: '10px' }}>
-                    ⚠️ Viktig: Dette passordet vises bare én gang. Gi dette til brukeren og be dem endre det når de logger inn.
+                    ⚠️ Viktig: Dette passordet vises bare én gang. Brukeren har mottatt en e-post med innloggingsdetaljer, men du kan også dele passordet manuelt hvis nødvendig.
                   </p>
                 </div>
                 <button 

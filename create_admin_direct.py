@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """
-Script to create admin user directly with hardcoded values.
+Script to create admin user.
+SECURITY: This script uses interactive input only - no hardcoded values or 
+environment variables for passwords. Passwords are hidden during input.
+
+For production, use the admin panel web interface instead of this script.
+This script is primarily for initial setup or development.
 """
 
 import asyncio
 import sys
 import os
 from datetime import datetime
+import getpass
 
 # Add the app directory to the Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
@@ -23,12 +29,40 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 async def create_admin_user():
-    """Create admin user with hardcoded values"""
-    print("Creating admin user...")
+    """
+    Create admin user with interactive input only.
     
-    email = "admin@tgtromso.no"
-    password = "admin123"
-    full_name = "Admin User"
+    SECURITY NOTES:
+    - Passwords are never stored in code or environment variables
+    - Password input is hidden (getpass)
+    - Password is never printed to console
+    - For production: Use the admin panel web interface instead
+    """
+    print("Creating admin user...")
+    print("⚠️  SECURITY: This script uses interactive input only.")
+    print("⚠️  For production, use the admin panel web interface instead.\n")
+    
+    # Get admin details - ONLY from interactive input for security
+    # Email can optionally come from env var for automation, but password NEVER should
+    email = os.getenv("ADMIN_EMAIL") or input("Enter admin email: ").strip()
+    if not email:
+        print("❌ Email is required")
+        return
+    
+    # SECURITY: Password must ALWAYS come from interactive input, never env vars
+    # This prevents accidental exposure in process lists, logs, or docker images
+    password = getpass.getpass("Enter admin password: ").strip()
+    if not password:
+        print("❌ Password is required")
+        return
+    
+    # Confirm password
+    password_confirm = getpass.getpass("Confirm admin password: ").strip()
+    if password != password_confirm:
+        print("❌ Passwords do not match")
+        return
+    
+    full_name = input("Enter admin full name (optional): ").strip()
     
     async with AsyncSessionLocal() as db:
         # Check if user already exists
@@ -54,10 +88,13 @@ async def create_admin_user():
         await db.commit()
         await db.refresh(admin_user)
         
-        print(f"✅ Admin user created successfully!")
-        print(f"Email: {email}")
-        print(f"Password: {password}")
-        print(f"Full name: {full_name}")
+        print(f"\n✅ Admin user created successfully!")
+        print(f"   Email: {email}")
+        print(f"   Full name: {full_name or 'Not set'}")
+        print(f"   Admin Status: ✅")
+        print(f"   User ID: {admin_user.id}")
+        print(f"\n⚠️  Security: Password was NOT displayed. Store it securely if needed.")
+        print(f"⚠️  Remember: For production, use the admin panel web interface instead.")
 
 if __name__ == "__main__":
     asyncio.run(create_admin_user())

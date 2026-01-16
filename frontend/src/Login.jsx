@@ -70,6 +70,21 @@ export default function Login({ onLogin }) {
             });
             if (userRes.ok) {
               const userData = await userRes.json();
+              
+              // Register session on backend (for session management)
+              try {
+                await fetch(`${API}/api/auth/register-session`, {
+                  method: 'POST',
+                  headers: { 
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                });
+              } catch (err) {
+                // Don't fail login if session registration fails
+                console.warn('Failed to register session:', err);
+              }
+              
               if (onLogin) {
                 onLogin(userData.email, userData.is_superuser, token);
               }

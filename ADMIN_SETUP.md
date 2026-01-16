@@ -1,19 +1,15 @@
 # Admin-konto oppsett for TG Tromsø
 
-## Opprettet admin-konto
+## Opprette admin-konto
 
-Du har nå en admin-konto med følgende detaljer:
-- **E-post**: `admin@tgtromso.no`
-- **Passord**: `admin123`
-- **Status**: Administrator med full tilgang til CMS
+For å opprette en admin-konto, bruk et av scriptene nedenfor. 
+**VIKTIG**: Ingen passord eller brukerdata er hardkodet i systemet for sikkerhet.
 
 ## Hvordan logge inn som admin
 
 1. Gå til frontend-applikasjonen (http://localhost:5173)
 2. Klikk "Logg inn" i navigasjonen
-3. Skriv inn:
-   - E-post: `admin@tgtromso.no`
-   - Passord: `admin123`
+3. Skriv inn e-post og passord for admin-kontoen du har opprettet
 4. Klikk "Logg inn"
 
 ## Tilgang til admin-panelet

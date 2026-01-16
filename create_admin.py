@@ -24,18 +24,33 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 async def create_admin_user():
-    """Create an admin user account."""
-    print("Creating admin user...")
+    """
+    Create an admin user account.
     
-    # Get admin details
+    SECURITY: Uses interactive input with hidden password entry.
+    For production, use the admin panel web interface instead.
+    """
+    import getpass
+    
+    print("Creating admin user...")
+    print("⚠️  SECURITY: Password input will be hidden.\n")
+    
+    # Get admin details - interactive input only
     email = input("Enter admin email: ").strip()
     if not email:
         print("❌ Email is required")
         return
     
-    password = input("Enter admin password: ").strip()
+    # SECURITY: Use getpass to hide password input
+    password = getpass.getpass("Enter admin password: ").strip()
     if not password:
         print("❌ Password is required")
+        return
+    
+    # Confirm password
+    password_confirm = getpass.getpass("Confirm admin password: ").strip()
+    if password != password_confirm:
+        print("❌ Passwords do not match")
         return
     
     full_name = input("Enter admin full name (optional): ").strip()
@@ -67,11 +82,12 @@ async def create_admin_user():
             await db.commit()
             await db.refresh(admin_user)
             
-            print(f"✅ Admin user created successfully!")
+            print(f"\n✅ Admin user created successfully!")
             print(f"   Email: {email}")
             print(f"   Full Name: {full_name or 'Not set'}")
             print(f"   Admin Status: ✅")
             print(f"   User ID: {admin_user.id}")
+            print(f"\n⚠️  Security: Password was NOT displayed. Store it securely if needed.")
             
         except Exception as e:
             print(f"❌ Error creating admin user: {e}")

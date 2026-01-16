@@ -67,7 +67,9 @@ bearer_transport = BearerTransport(tokenUrl="/auth/jwt/login")
 
 def get_jwt_strategy() -> JWTStrategy:
     logger.debug("Creating JWT strategy")
-    return JWTStrategy(secret=settings.SECRET, lifetime_seconds=60 * 60 * 24)
+    # JWT token expires after 25 minutes for inactivity timeout
+    # Frontend will track inactivity and logout before this expires
+    return JWTStrategy(secret=settings.SECRET, lifetime_seconds=60 * 25)
 
 auth_backend = AuthenticationBackend(
     name="jwt",

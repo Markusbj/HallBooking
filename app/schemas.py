@@ -12,6 +12,8 @@ class UserCreate(schemas.BaseUserCreate):
 
 class UserUpdate(schemas.BaseUserUpdate):
     full_name: Optional[str] = None
+    privacy_accepted: Optional[bool] = None
+    privacy_accepted_date: Optional[datetime] = None
 
 
 class BookingCreate(BaseModel):

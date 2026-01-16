@@ -12,6 +12,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     
     full_name: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(length=20), nullable=True)
+    privacy_accepted: Mapped[bool] = mapped_column(default=False)  # GDPR privacy policy acceptance
+    privacy_accepted_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # When privacy was accepted
 
 class PageContent(Base):
     __tablename__ = "page_content"
@@ -59,6 +61,17 @@ class NewsItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
     created_by: Mapped[str] = mapped_column(String, nullable=True)  # user_id who created it
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, index=True, nullable=False)  # Reference to User.id
+    session_token: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)  # JWT token (or hash)
+    device_info: Mapped[str] = mapped_column(String(500), nullable=True)  # Browser/device info
+    last_activity: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)  # When session expires
 
 
 
