@@ -43,6 +43,14 @@ function AdminPanel() {
     image_url: ''
   });
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    email: '',
+    full_name: '',
+    phone: '',
+    is_superuser: false
+  });
+  const [createdUserPassword, setCreatedUserPassword] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'content') {
@@ -1270,13 +1278,21 @@ function AdminPanel() {
         <div className="users-management">
           <div className="content-header">
             <h2>Brukeradministrasjon</h2>
-            <div className="user-stats">
-              <span className="stat-item">
-                <strong>{users.length}</strong> totalt brukere
-              </span>
-              <span className="stat-item">
-                <strong>{users.filter(u => u.is_superuser).length}</strong> administratorer
-              </span>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div className="user-stats">
+                <span className="stat-item">
+                  <strong>{users.length}</strong> totalt brukere
+                </span>
+                <span className="stat-item">
+                  <strong>{users.filter(u => u.is_superuser).length}</strong> administratorer
+                </span>
+              </div>
+              <button 
+                className="btn btn-primary"
+                onClick={() => setCreatingUser(true)}
+              >
+                + Opprett ny bruker
+              </button>
             </div>
           </div>
 
@@ -1388,6 +1404,157 @@ function AdminPanel() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {creatingUser && (
+        <div className="content-editor-modal" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 20000
+        }}>
+          <div className="modal-content" style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h3>Opprett ny bruker</h3>
+            {createdUserPassword ? (
+              <div>
+                <div className="alert alert-success" style={{ marginBottom: '20px', padding: '15px', background: '#d4edda', color: '#155724', borderRadius: '8px' }}>
+                  <strong>Bruker opprettet vellykket!</strong>
+                </div>
+                <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                  <p><strong>E-post:</strong> {newUserForm.email}</p>
+                  <p><strong>Rolle:</strong> {newUserForm.is_superuser ? 'Administrator' : 'Standard bruker'}</p>
+                  <p><strong>Passord:</strong> <code style={{ background: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '14px' }}>{createdUserPassword}</code></p>
+                  <p style={{ fontSize: '13px', color: '#666', marginTop: '10px' }}>
+                    ⚠️ Viktig: Dette passordet vises bare én gang. Gi dette til brukeren og be dem endre det når de logger inn.
+                  </p>
+                </div>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    setCreatingUser(false);
+                    setCreatedUserPassword(null);
+                    setNewUserForm({ email: '', full_name: '', phone: '', is_superuser: false });
+                    fetchUsers();
+                  }}
+                >
+                  Lukk
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError(null);
+                try {
+                  const token = localStorage.getItem('token');
+                  const response = await fetch(`${API}/api/admin/users`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newUserForm)
+                  });
+                  
+                  if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Kunne ikke opprette bruker' }));
+                    throw new Error(errorData.detail || 'Kunne ikke opprette bruker');
+                  }
+                  
+                  const data = await response.json();
+                  setCreatedUserPassword(data.password);
+                  await fetchUsers();
+                } catch (err) {
+                  setError(err.message || 'Kunne ikke opprette bruker');
+                } finally {
+                  setLoading(false);
+                }
+              }}>
+                <div className="form-group">
+                  <label>E-post *</label>
+                  <input
+                    type="email"
+                    value={newUserForm.email}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                    required
+                    className="form-input"
+                    placeholder="bruker@example.com"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Fullt navn</label>
+                  <input
+                    type="text"
+                    value={newUserForm.full_name}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, full_name: e.target.value })}
+                    className="form-input"
+                    placeholder="Ola Nordmann"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Telefonnummer</label>
+                  <input
+                    type="tel"
+                    value={newUserForm.phone}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, phone: e.target.value })}
+                    className="form-input"
+                    placeholder="+47 123 45 678"
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={newUserForm.is_superuser}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, is_superuser: e.target.checked })}
+                    />
+                    <span>Gi administrator-rettigheter</span>
+                  </label>
+                  <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
+                    Administratorer har tilgang til admin-panelet og kan administrere alle brukere og innhold.
+                  </p>
+                </div>
+                <div className="form-group">
+                  <p style={{ fontSize: '13px', color: '#666' }}>
+                    Et tilfeldig passord vil bli generert automatisk og vises etter at brukeren er opprettet.
+                  </p>
+                </div>
+                <div className="form-actions" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button type="submit" className="btn btn-primary" disabled={loading}>
+                    {loading ? 'Oppretter...' : 'Opprett bruker'}
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-ghost" 
+                    onClick={() => {
+                      setCreatingUser(false);
+                      setNewUserForm({ email: '', full_name: '', phone: '', is_superuser: false });
+                      setError(null);
+                    }}
+                    disabled={loading}
+                  >
+                    Avbryt
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>

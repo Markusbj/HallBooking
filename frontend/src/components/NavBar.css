@@ -241,14 +241,16 @@
   }
   
   .nav-auth {
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
+    flex-direction: row;
+    gap: 6px;
+    flex-shrink: 0;
   }
   
   .nav-auth .btn {
-    width: 100%;
-    text-align: center;
+    padding: 6px 10px;
+    font-size: 13px;
+    white-space: nowrap;
+    min-width: auto;
   }
   
   .nav-user-name {
@@ -256,7 +258,9 @@
   }
   
   .nav-right {
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
+    min-width: 0;
   }
 }
 
@@ -273,6 +277,15 @@
   .nav-user-avatar {
     width: 28px;
     height: 28px;
+    font-size: 12px;
+  }
+  
+  .nav-auth {
+    gap: 4px;
+  }
+  
+  .nav-auth .btn {
+    padding: 5px 8px;
     font-size: 12px;
   }
 }

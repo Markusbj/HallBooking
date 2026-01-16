@@ -23,6 +23,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import shutil
 from pathlib import Path
+import secrets
+import string
+from passlib.context import CryptContext
 
 # Sett opp logging
 logging.basicConfig(
@@ -430,6 +433,110 @@ async def get_all_users(user=Depends(current_active_user), db: Session = Depends
     
     users = await crud.get_all_users(db)
     return {"users": users}
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def generate_password(length=12):
+    """Generate a secure random password"""
+    alphabet = string.ascii_letters + string.digits + "!@#$%&*"
+    password = ''.join(secrets.choice(alphabet) for i in range(length))
+    return password
+
+class CreateUserRequest(BaseModel):
+    email: str
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    is_superuser: bool = False
+
+@app.post("/api/admin/users")
+async def create_user_admin(
+    user_data: CreateUserRequest, 
+    user=Depends(current_active_user), 
+    db: Session = Depends(database.get_db)
+):
+    """
+    Create a new user (admin only).
+    Generates a random password automatically.
+    """
+    _require_admin(user)
+    
+    # Check if user already exists
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy import select
+    
+    result = await db.execute(select(models.User).filter(models.User.email == user_data.email))
+    existing_user = result.scalar_one_or_none()
+    
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Bruker med denne e-postadressen eksisterer allerede")
+    
+    # Generate password
+    generated_password = generate_password()
+    hashed_password = pwd_context.hash(generated_password)
+    
+    # Create new user
+    new_user = models.User(
+        email=user_data.email,
+        hashed_password=hashed_password,
+        full_name=user_data.full_name,
+        phone=user_data.phone,
+        is_active=True,
+        is_superuser=user_data.is_superuser,
+        is_verified=True  # Auto-verify admin-created users
+    )
+    
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    
+    return {
+        "user": {
+            "id": str(new_user.id),
+            "email": new_user.email,
+            "full_name": new_user.full_name,
+            "phone": new_user.phone
+        },
+        "password": generated_password,  # Return password so admin can share it
+        "message": "Bruker opprettet vellykket"
+    }
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@app.post("/users/me/change-password")
+async def change_password(
+    password_data: ChangePasswordRequest,
+    user=Depends(current_active_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Change password for the current user.
+    """
+    # Validate new password length
+    if len(password_data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Nytt passord må være minst 8 tegn")
+    
+    # Get user from database
+    from sqlalchemy import select
+    
+    result = await db.execute(select(models.User).filter(models.User.id == user.id))
+    db_user = result.scalar_one_or_none()
+    
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Bruker ikke funnet")
+    
+    # Verify current password
+    if not pwd_context.verify(password_data.current_password, db_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Nåværende passord er feil")
+    
+    # Hash and update password
+    db_user.hashed_password = pwd_context.hash(password_data.new_password)
+    db.add(db_user)
+    await db.commit()
+    
+    return {"message": "Passord endret vellykket"}
 
 # Add/replace profile pydantic model and endpoints to use DB session
 class UserProfileUpdate(BaseModel):
