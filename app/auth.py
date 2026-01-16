@@ -1,5 +1,6 @@
 import uuid
 import logging
+import asyncio
 from typing import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -32,40 +33,59 @@ async def create_db_and_tables():
         
         # Add missing columns to existing tables (migration)
         # This handles adding new columns to the User table without requiring a separate migration script
-        from sqlalchemy import text
-        async with AsyncSessionLocal() as db:
-            try:
-                # Check if privacy columns exist in user table
-                check_query = text("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = :table_name 
-                    AND column_name IN ('privacy_accepted', 'privacy_accepted_date')
-                """)
-                result = await db.execute(check_query, {"table_name": "user"})
-                existing_columns = [row[0] for row in result.fetchall()]
-                
-                # Add privacy_accepted column if missing
-                if 'privacy_accepted' not in existing_columns:
-                    logger.info("Adding privacy_accepted column to user table...")
-                    alter_query1 = text('ALTER TABLE "user" ADD COLUMN privacy_accepted BOOLEAN NOT NULL DEFAULT FALSE')
-                    await db.execute(alter_query1)
-                    await db.commit()
-                    logger.info("✅ Added privacy_accepted column")
-                
-                # Add privacy_accepted_date column if missing
-                if 'privacy_accepted_date' not in existing_columns:
-                    logger.info("Adding privacy_accepted_date column to user table...")
-                    alter_query2 = text('ALTER TABLE "user" ADD COLUMN privacy_accepted_date TIMESTAMP NULL')
-                    await db.execute(alter_query2)
-                    await db.commit()
-                    logger.info("✅ Added privacy_accepted_date column")
-                    
-            except Exception as migration_error:
-                # Don't fail startup if migration fails (might be permission issues or columns already exist)
-                # Log the error but continue
-                logger.warning(f"Could not add privacy columns (may already exist): {migration_error}")
-                await db.rollback()
+        # Use a separate try/except to ensure startup doesn't hang if migration fails
+        try:
+            from sqlalchemy import text
+            
+            # Add timeout to prevent hanging
+            async def run_migration():
+                async with AsyncSessionLocal() as db:
+                    try:
+                        # Check if privacy columns exist in user table
+                        check_query = text("""
+                            SELECT column_name 
+                            FROM information_schema.columns 
+                            WHERE table_name = :table_name 
+                            AND column_name IN ('privacy_accepted', 'privacy_accepted_date')
+                        """)
+                        result = await db.execute(check_query, {"table_name": "user"})
+                        existing_columns = [row[0] for row in result.fetchall()]
+                        
+                        # Add privacy_accepted column if missing
+                        if 'privacy_accepted' not in existing_columns:
+                            logger.info("Adding privacy_accepted column to user table...")
+                            alter_query1 = text('ALTER TABLE "user" ADD COLUMN privacy_accepted BOOLEAN NOT NULL DEFAULT FALSE')
+                            await db.execute(alter_query1)
+                            await db.commit()
+                            logger.info("✅ Added privacy_accepted column")
+                        
+                        # Add privacy_accepted_date column if missing
+                        if 'privacy_accepted_date' not in existing_columns:
+                            logger.info("Adding privacy_accepted_date column to user table...")
+                            alter_query2 = text('ALTER TABLE "user" ADD COLUMN privacy_accepted_date TIMESTAMP NULL')
+                            await db.execute(alter_query2)
+                            await db.commit()
+                            logger.info("✅ Added privacy_accepted_date column")
+                        else:
+                            logger.info("Privacy columns already exist, skipping migration")
+                            
+                    except Exception as migration_error:
+                        # Don't fail startup if migration fails (might be permission issues or columns already exist)
+                        # Log the error but continue
+                        logger.warning(f"Could not add privacy columns (may already exist): {migration_error}")
+                        try:
+                            await db.rollback()
+                        except:
+                            pass
+            
+            # Run migration with timeout (10 seconds)
+            await asyncio.wait_for(run_migration(), timeout=10.0)
+            
+        except asyncio.TimeoutError:
+            logger.warning("Migration timed out after 10 seconds, continuing startup...")
+        except Exception as migration_error:
+            # Don't fail startup if migration fails
+            logger.warning(f"Migration failed but continuing startup: {migration_error}")
                 
     except Exception as e:
         logger.error(f"Error creating database tables: {e}")
