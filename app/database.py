@@ -31,19 +31,7 @@ def get_database_url():
 DATABASE_URL = get_database_url()
 
 # async engine for runtime
-# Add connection pool settings and timeouts to prevent hanging
-connect_args = {}
-if DATABASE_URL.startswith("postgresql"):
-    connect_args["server_settings"] = {"application_name": "hallbooking_api"}
-
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    future=True,
-    pool_pre_ping=True,  # Verify connections before using them
-    pool_recycle=3600,   # Recycle connections after 1 hour
-    connect_args=connect_args
-)
+engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 # async session factory
 AsyncSessionLocal = async_sessionmaker(

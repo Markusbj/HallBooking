@@ -55,11 +55,9 @@ async def update_user_profile(db: AsyncSession, user_id, data: dict):
                     # If parsing fails, keep original value
                     pass
             elif k == 'privacy_accepted_date' and isinstance(v, datetime):
-                # If already a datetime object, ensure it's naive UTC
+                # If already a datetime object, ensure it's naive
                 if v.tzinfo is not None:
-                    # Convert timezone-aware datetime to naive UTC
                     v = v.astimezone(timezone.utc).replace(tzinfo=None)
-                # Already naive, use as-is
             setattr(user, k, v)
     db.add(user)
     await db.commit()

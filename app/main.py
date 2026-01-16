@@ -126,14 +126,10 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
-app.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix="/users",
-    tags=["users"],
-)
-# Override the default PATCH /users/me endpoint to handle datetime conversion
-# This must come AFTER the router include to override the default endpoint
-@app.patch("/users/me", response_model=UserRead, dependencies=[Depends(current_active_user)])
+
+# Define custom PATCH /users/me BEFORE including users router
+# This prevents FastAPI Users' default handler from being used
+@app.patch("/users/me", response_model=UserRead)
 async def update_current_user(
     user_update: UserUpdate,
     user=Depends(current_active_user),
@@ -145,7 +141,7 @@ async def update_current_user(
     from datetime import timezone
     
     # Convert update data to dict
-    # Use model_dump for Pydantic v2 compatibility, fallback to dict for v1
+    # Use model_dump for Pydantic v2, fallback to dict for v1
     if hasattr(user_update, 'model_dump'):
         update_data = user_update.model_dump(exclude_unset=True)
     else:
@@ -168,19 +164,18 @@ async def update_current_user(
             except (ValueError, AttributeError) as e:
                 logger.warning(f"Failed to parse datetime string: {e}")
                 # Remove invalid date if parsing fails
-                del update_data['privacy_accepted_date']
+                if 'privacy_accepted_date' in update_data:
+                    del update_data['privacy_accepted_date']
         elif isinstance(date_value, datetime):
             # If already a datetime object, ensure it's naive UTC
-            original_tzinfo = date_value.tzinfo
             if date_value.tzinfo is not None:
                 # Convert timezone-aware datetime to naive UTC
                 naive_dt = date_value.astimezone(timezone.utc).replace(tzinfo=None)
                 update_data['privacy_accepted_date'] = naive_dt
-                logger.debug(f"Converted timezone-aware datetime (tzinfo={original_tzinfo}) to naive UTC")
+                logger.debug(f"Converted timezone-aware datetime to naive UTC")
             else:
                 # Already naive, use as-is
                 update_data['privacy_accepted_date'] = date_value
-                logger.debug("Datetime is already naive, using as-is")
     
     # Update user using crud helper
     updated_user = await crud.update_user_profile(db, user.id, update_data)
@@ -188,6 +183,13 @@ async def update_current_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     return UserRead.model_validate(updated_user)
+
+# Include users router (GET /users/me, etc.) AFTER our custom PATCH override
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
 
 # Session management endpoints
 @app.post("/api/auth/register-session")
