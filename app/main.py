@@ -131,6 +131,46 @@ app.include_router(
     prefix="/users",
     tags=["users"],
 )
+# Override the default PATCH /users/me endpoint to handle datetime conversion
+# This must come AFTER the router include to override the default endpoint
+@app.patch("/users/me", response_model=UserRead, dependencies=[Depends(current_active_user)])
+async def update_current_user(
+    user_update: UserUpdate,
+    user=Depends(current_active_user),
+    db: AsyncSession = Depends(database.get_db)
+):
+    """
+    Update current user with timezone-aware datetime conversion for privacy_accepted_date.
+    """
+    from datetime import timezone
+    
+    # Convert update data to dict
+    update_data = user_update.dict(exclude_unset=True)
+    
+    # Handle privacy_accepted_date datetime conversion
+    if 'privacy_accepted_date' in update_data and update_data['privacy_accepted_date'] is not None:
+        date_value = update_data['privacy_accepted_date']
+        if isinstance(date_value, str):
+            # Parse ISO string to datetime
+            try:
+                dt = datetime.fromisoformat(date_value.replace('Z', '+00:00'))
+                # Convert to UTC naive datetime (PostgreSQL TIMESTAMP WITHOUT TIME ZONE)
+                if dt.tzinfo is not None:
+                    dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                update_data['privacy_accepted_date'] = dt
+            except (ValueError, AttributeError):
+                pass
+        elif isinstance(date_value, datetime):
+            # If already a datetime object, ensure it's naive
+            if date_value.tzinfo is not None:
+                update_data['privacy_accepted_date'] = date_value.astimezone(timezone.utc).replace(tzinfo=None)
+    
+    # Update user using crud helper
+    updated_user = await crud.update_user_profile(db, user.id, update_data)
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserRead.model_validate(updated_user)
 
 # Session management endpoints
 @app.post("/api/auth/register-session")

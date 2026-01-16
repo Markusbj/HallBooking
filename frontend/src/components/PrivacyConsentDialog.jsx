@@ -4,7 +4,7 @@ import './PrivacyConsentDialog.css';
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function PrivacyConsentDialog({ userEmail, token, onAccepted }) {
+export default function PrivacyConsentDialog({ userEmail, token, onAccepted, onRejected }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -36,6 +36,23 @@ export default function PrivacyConsentDialog({ userEmail, token, onAccepted }) {
       setError(err.message || 'En feil oppstod');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReject = () => {
+    // If user rejects privacy policy, they cannot use the service
+    // Log them out and redirect to home
+    if (window.confirm(
+      'For å bruke tjenesten må du akseptere personvernserklæringen. ' +
+      'Hvis du ikke aksepterer, vil du bli logget ut. Vil du fortsette med utlogging?'
+    )) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('isAdmin');
+      if (onRejected) {
+        onRejected();
+      }
+      window.location.href = '/';
     }
   };
 
@@ -78,7 +95,8 @@ export default function PrivacyConsentDialog({ userEmail, token, onAccepted }) {
 
           <div className="privacy-consent-footer">
             <p className="privacy-note">
-              Ved å klikke "Aksepter" samtykker du til vår personvernserklæring og behandling av dine personopplysninger i henhold til GDPR.
+              Ved å klikke "Aksepter" samtykker du til vår personvernserklæring og behandling av dine personopplysninger i henhold til GDPR. 
+              Hvis du ikke aksepterer, må du logge ut for å forlate tjenesten.
             </p>
             <div className="privacy-actions">
               <button 
@@ -87,6 +105,14 @@ export default function PrivacyConsentDialog({ userEmail, token, onAccepted }) {
                 disabled={loading}
               >
                 {loading ? 'Lagrer...' : 'Aksepter personvernserklæring'}
+              </button>
+              <button 
+                className="btn btn-outline" 
+                onClick={handleReject}
+                disabled={loading}
+                style={{ marginLeft: '12px' }}
+              >
+                Avvis og logg ut
               </button>
             </div>
           </div>

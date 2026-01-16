@@ -35,12 +35,29 @@ async def update_user_profile(db: AsyncSession, user_id, data: dict):
     Update fields on models.User for given user_id and persist to DB.
     Returns the updated user model or None if not found.
     """
+    from datetime import timezone
     result = await db.execute(select(models.User).filter(models.User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         return None
     for k, v in data.items():
         if hasattr(user, k) and v is not None:
+            # Convert timezone-aware datetime strings to naive datetime objects for PostgreSQL
+            if k == 'privacy_accepted_date' and isinstance(v, str):
+                try:
+                    # Parse ISO string to datetime
+                    dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
+                    # Convert to UTC naive datetime (PostgreSQL TIMESTAMP WITHOUT TIME ZONE)
+                    if dt.tzinfo is not None:
+                        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                    v = dt
+                except (ValueError, AttributeError):
+                    # If parsing fails, keep original value
+                    pass
+            elif k == 'privacy_accepted_date' and isinstance(v, datetime):
+                # If already a datetime object, ensure it's naive
+                if v.tzinfo is not None:
+                    v = v.astimezone(timezone.utc).replace(tzinfo=None)
             setattr(user, k, v)
     db.add(user)
     await db.commit()
