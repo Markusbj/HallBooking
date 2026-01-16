@@ -27,9 +27,17 @@ async_session_maker = AsyncSessionLocal
 async def create_db_and_tables():
     logger.info("Creating database tables...")
     try:
-        async with async_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created successfully")
+        # Add timeout to prevent hanging on database connection
+        async def create_tables():
+            async with async_engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        
+        try:
+            await asyncio.wait_for(create_tables(), timeout=30.0)
+            logger.info("Database tables created successfully")
+        except asyncio.TimeoutError:
+            logger.error("Database table creation timed out after 30 seconds!")
+            raise
         
         # Add missing columns to existing tables (migration)
         # This handles adding new columns to the User table without requiring a separate migration script
