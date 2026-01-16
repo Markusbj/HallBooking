@@ -1083,7 +1083,7 @@
   }
 }
 
-/* Smaller time slots on desktop to give more space to calendar */
+/* Smaller time slots and booking panel on desktop to give more space to calendar */
 @media (min-width: 901px) {
   .time-slots {
     padding: 12px;
@@ -1114,6 +1114,22 @@
     width: 14px;
     height: 14px;
     font-size: 8px;
+  }
+  
+  .booking-panel {
+    width: 360px;
+    padding: 24px;
+  }
+  
+  .bookings-content {
+    gap: 32px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .booking-panel {
+    width: 380px;
+    padding: 28px;
   }
 }
 
