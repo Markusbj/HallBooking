@@ -63,15 +63,19 @@ function App() {
           setShowPrivacyDialog(true);
         }
         
-        // Update session activity on backend
-        try {
-          await fetch(`${API}/api/auth/update-session`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${t}` },
-          });
-        } catch (err) {
-          // Don't fail if session update fails, just log it
-          console.warn('Failed to update session activity:', err);
+        // Update session activity on backend ONLY if user has accepted cookies
+        // Session tracking requires consent under GDPR
+        const cookieConsent = localStorage.getItem('cookieConsent');
+        if (cookieConsent === 'accepted') {
+          try {
+            await fetch(`${API}/api/auth/update-session`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${t}` },
+            });
+          } catch (err) {
+            // Don't fail if session update fails, just log it
+            console.warn('Failed to update session activity:', err);
+          }
         }
       })
       .catch(() => {

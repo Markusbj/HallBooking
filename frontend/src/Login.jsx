@@ -12,12 +12,7 @@ export default function Login({ onLogin }) {
   const navigate = useNavigate();
 
   const loginPaths = [
-    "/auth/jwt/login", // Correct FastAPI Users endpoint
-    "/jwt/login",
-    "/auth/login",
-    "/auth/token",
-    "/token",
-    "/login"
+    "/auth/jwt/login" // Correct FastAPI Users endpoint - must be first!
   ];
 
   async function tryLogin(path) {
@@ -71,18 +66,22 @@ export default function Login({ onLogin }) {
             if (userRes.ok) {
               const userData = await userRes.json();
               
-              // Register session on backend (for session management)
-              try {
-                await fetch(`${API}/api/auth/register-session`, {
-                  method: 'POST',
-                  headers: { 
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                });
-              } catch (err) {
-                // Don't fail login if session registration fails
-                console.warn('Failed to register session:', err);
+              // Register session on backend ONLY if user has accepted cookies
+              // Session tracking requires consent under GDPR
+              const cookieConsent = localStorage.getItem('cookieConsent');
+              if (cookieConsent === 'accepted') {
+                try {
+                  await fetch(`${API}/api/auth/register-session`, {
+                    method: 'POST',
+                    headers: { 
+                      Authorization: `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    },
+                  });
+                } catch (err) {
+                  // Don't fail login if session registration fails
+                  console.warn('Failed to register session:', err);
+                }
               }
               
               if (onLogin) {
@@ -104,7 +103,9 @@ export default function Login({ onLogin }) {
       }
 
       // If we get here, no path succeeded
-      const msg = result && (result.message || (result.error && result.error.message)) ? (result.message || result.error.message) : "Innlogging mislyktes — sjekk backend-ruter";
+      const msg = result && (result.message || (result.error && result.error.message)) 
+        ? (result.message || result.error.message) 
+        : "Innlogging mislyktes. Sjekk at e-post og passord er riktig.";
       setError(msg);
     } finally {
       setLoading(false);

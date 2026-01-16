@@ -22,7 +22,15 @@ export default function NavBar() {
   useEffect(() => {
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
-    localStorage.setItem("dark_mode", darkMode ? "true" : "false");
+    
+    // Only save dark mode preference if user has accepted cookies
+    const cookieConsent = localStorage.getItem('cookieConsent');
+    if (cookieConsent === 'accepted') {
+      localStorage.setItem("dark_mode", darkMode ? "true" : "false");
+    } else {
+      // If cookies rejected, don't persist preference
+      // But still apply it for current session
+    }
   }, [darkMode]);
 
   // Load user info when logged in
@@ -58,9 +66,17 @@ export default function NavBar() {
   // NavBar is now available on all pages including login and register
 
   function handleSave() {
-    localStorage.setItem("contact_email", contactEmail);
-    localStorage.setItem("contact_phone", contactPhone);
-    if (contactEmail) localStorage.setItem("userEmail", contactEmail);
+    // Only save preferences if user has accepted cookies
+    const cookieConsent = localStorage.getItem('cookieConsent');
+    if (cookieConsent === 'accepted') {
+      localStorage.setItem("contact_email", contactEmail);
+      localStorage.setItem("contact_phone", contactPhone);
+      if (contactEmail) localStorage.setItem("userEmail", contactEmail);
+    } else {
+      // If cookies rejected, show message
+      alert('For å lagre preferanser må du først akseptere cookies. Du kan endre innstillingene i cookie-banneren.');
+      return;
+    }
     setOpen(false);
   }
 

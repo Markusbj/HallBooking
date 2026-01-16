@@ -24,15 +24,31 @@ export default function CookieConsent() {
     localStorage.setItem('cookieConsent', 'rejected');
     localStorage.setItem('cookieConsentDate', new Date().toISOString());
     
-    // Clear non-essential data if user rejects
-    // Note: If user is logged in, we cannot remove auth token immediately as that would
-    // prevent logout. However, session will expire naturally and won't be renewed.
+    // Clear non-essential data when user rejects cookies
+    localStorage.removeItem('dark_mode');
+    localStorage.removeItem('contact_email');
+    localStorage.removeItem('contact_phone');
+    
+    // Important: If user is logged in and rejects cookies, they should be logged out
+    // since session tracking requires cookie/localStorage consent
     const isLoggedIn = !!localStorage.getItem('token');
-    if (!isLoggedIn) {
-      localStorage.removeItem('dark_mode');
-      localStorage.removeItem('contact_email');
-      localStorage.removeItem('contact_phone');
-      // Also clear any session data that might have been stored
+    if (isLoggedIn) {
+      // Inform user that logout is required
+      if (window.confirm(
+        'Du er for øyeblikket innlogget. For å respektere ditt valg om å avvise cookies, må vi logge deg ut. ' +
+        'Du kan fortsatt bruke tjenesten uten å være innlogget. Vil du fortsette med utlogging?'
+      )) {
+        // Clear all authentication data
+        localStorage.removeItem('token');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('isAdmin');
+        // Reload page to reflect logout state
+        window.location.href = '/';
+      } else {
+        // User cancelled - keep current state but don't close banner
+        // They can choose to accept cookies instead
+        return;
+      }
     }
     
     setShowBanner(false);
@@ -55,6 +71,21 @@ export default function CookieConsent() {
             <li>Spore aktive sesjoner for sikkerhet (maks 2 enheter samtidig)</li>
             <li>Lagre dine preferanser (valgfritt, som mørk modus)</li>
           </ul>
+          <div style={{ 
+            background: '#fff3cd', 
+            padding: '12px', 
+            borderRadius: '8px', 
+            marginTop: '12px',
+            border: '1px solid #ffc107',
+            fontSize: '13px'
+          }}>
+            <strong>⚠️ Hvis du avviser cookies:</strong>
+            <ul style={{ margin: '8px 0 0 20px' }}>
+              <li>Du kan fortsatt bruke tjenesten, men må være utlogget</li>
+              <li>Dine preferanser (som mørk modus) lagres ikke mellom sesjoner</li>
+              <li>Session tracking deaktiveres (ingen begrensning på samtidige enheter)</li>
+            </ul>
+          </div>
           <p style={{ fontSize: '13px', marginTop: '12px', color: '#666' }}>
             <strong>Juridisk grunnlag:</strong> Autentiseringstoken er nødvendig for å levere tjenesten (GDPR Art. 6(1)(b)). 
             Sesjonstracking skjer for sikkerhetsformål (legitimt interesse, GDPR Art. 6(1)(f)). 

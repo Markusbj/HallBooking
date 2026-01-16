@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, date as date_type, timezone
 from typing import List, Dict, Any
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 import logging
 import time
@@ -137,7 +137,7 @@ app.include_router(
 async def register_session(
     request: Request,
     user=Depends(current_active_user),
-    db: Session = Depends(database.get_db)
+    db: AsyncSession = Depends(database.get_db)
 ):
     """
     Register a new session for the logged-in user.
@@ -177,7 +177,7 @@ async def register_session(
 async def update_session(
     request: Request,
     user=Depends(current_active_user),
-    db: Session = Depends(database.get_db)
+    db: AsyncSession = Depends(database.get_db)
 ):
     """Update session activity timestamp"""
     import hashlib
@@ -198,7 +198,7 @@ async def update_session(
 @app.get("/api/auth/sessions")
 async def get_sessions(
     user=Depends(current_active_user),
-    db: Session = Depends(database.get_db)
+    db: AsyncSession = Depends(database.get_db)
 ):
     """Get all active sessions for the current user"""
     sessions = await crud.get_user_sessions(db, str(user.id), active_only=True)
@@ -218,7 +218,7 @@ async def get_sessions(
 async def delete_session(
     session_id: str,
     user=Depends(current_active_user),
-    db: Session = Depends(database.get_db)
+    db: AsyncSession = Depends(database.get_db)
 ):
     """Delete a specific session (user can only delete their own sessions)"""
     from sqlalchemy import select
@@ -339,7 +339,7 @@ async def _apply_blocked_times_to_slots(slots, target_date, db):
                     break
 
 @app.get("/bookings/{target_date}")
-async def get_bookings_calendar(target_date: str, db: Session = Depends(database.get_db)):
+async def get_bookings_calendar(target_date: str, db: AsyncSession = Depends(database.get_db)):
     """
     Return a calendar view (hourly slots) for given date (YYYY-MM-DD).
     """
@@ -360,7 +360,7 @@ async def get_bookings_calendar(target_date: str, db: Session = Depends(database
     }
 
 @app.post("/bookings")
-async def create_booking(booking: BookingCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def create_booking(booking: BookingCreate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     booking_id = str(uuid.uuid4())
 
     # Normalize incoming datetimes to local naive before storing (prevents shift)
@@ -430,7 +430,7 @@ class BookingUpdate(BaseModel):
     end_time: Optional[datetime] = None
 
 @app.patch("/bookings/{booking_id}")
-async def partial_update_booking(booking_id: str, payload: BookingUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def partial_update_booking(booking_id: str, payload: BookingUpdate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Partially update a booking (admin only)"""
     _require_admin(user)
     if booking_id not in BOOKINGS:
@@ -494,7 +494,7 @@ async def get_my_bookings(user=Depends(current_active_user)):
     return {"bookings": my}
 
 @app.get("/api/admin/bookings")
-async def get_all_bookings(user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def get_all_bookings(user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """
     Return all bookings for admin users with user information.
     """
@@ -529,7 +529,7 @@ async def get_all_bookings(user=Depends(current_active_user), db: Session = Depe
     return {"bookings": all_bookings}
 
 @app.get("/api/admin/users")
-async def get_all_users(user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def get_all_users(user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """
     Return all users for admin users.
     """
@@ -627,7 +627,7 @@ async def create_user_admin(
     user_data: CreateUserRequest, 
     background_tasks: BackgroundTasks,
     user=Depends(current_active_user), 
-    db: Session = Depends(database.get_db)
+    db: AsyncSession = Depends(database.get_db)
 ):
     """
     Create a new user (admin only).
@@ -636,7 +636,6 @@ async def create_user_admin(
     _require_admin(user)
     
     # Check if user already exists
-    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy import select
     
     result = await db.execute(select(models.User).filter(models.User.email == user_data.email))
@@ -693,7 +692,7 @@ class ChangePasswordRequest(BaseModel):
 async def change_password(
     password_data: ChangePasswordRequest,
     user=Depends(current_active_user),
-    db: Session = Depends(database.get_db)
+    db: AsyncSession = Depends(database.get_db)
 ):
     """
     Change password for the current user.
@@ -932,7 +931,7 @@ async def get_news_items_api(
     published: Optional[bool] = None,
     featured: Optional[bool] = None,
     limit: Optional[int] = None,
-    db: Session = Depends(database.get_db)
+    db: AsyncSession = Depends(database.get_db)
 ):
     """Get news items (kurs, seminarer, nyheter) with optional filters"""
     items = await crud.get_news_items(db, item_type=item_type, published=published, featured=featured, limit=limit)
