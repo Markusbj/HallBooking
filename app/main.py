@@ -738,7 +738,7 @@ async def get_my_profile(user=Depends(current_active_user)):
     }
 
 @app.put("/users/me/profile")
-async def update_my_profile(payload: UserProfileUpdate, db: Session = Depends(database.get_db), user=Depends(current_active_user)):
+async def update_my_profile(payload: UserProfileUpdate, db: AsyncSession = Depends(database.get_db), user=Depends(current_active_user)):
     """
     Update current user's profile and persist to DB via crud.update_user_profile.
     """
@@ -764,7 +764,7 @@ async def update_my_profile(payload: UserProfileUpdate, db: Session = Depends(da
 
 # Page Content API endpoints
 @app.get("/api/page-content/{page_name}")
-async def get_page_content_api(page_name: str, section_name: str = None, db: Session = Depends(database.get_db)):
+async def get_page_content_api(page_name: str, section_name: str = None, db: AsyncSession = Depends(database.get_db)):
     """Get content for a specific page"""
     content = await crud.get_page_content(db, page_name, section_name)
     if section_name and content:
@@ -775,13 +775,13 @@ async def get_page_content_api(page_name: str, section_name: str = None, db: Ses
         return {"content": []}
 
 @app.get("/api/page-content")
-async def get_all_page_content_api(db: Session = Depends(database.get_db)):
+async def get_all_page_content_api(db: AsyncSession = Depends(database.get_db)):
     """Get all page content (admin only)"""
     content = await crud.get_all_page_content(db)
     return {"content": content}
 
 @app.post("/api/page-content")
-async def create_page_content_api(content: schemas.PageContentCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def create_page_content_api(content: schemas.PageContentCreate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Create new page content (admin only)"""
     _require_admin(user)
     user_id = str(getattr(user, "id", ""))
@@ -789,7 +789,7 @@ async def create_page_content_api(content: schemas.PageContentCreate, user=Depen
     return new_content
 
 @app.put("/api/page-content/{content_id}")
-async def update_page_content_api(content_id: str, content: schemas.PageContentUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def update_page_content_api(content_id: str, content: schemas.PageContentUpdate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Update page content (admin only)"""
     _require_admin(user)
     user_id = str(getattr(user, "id", ""))
@@ -799,7 +799,7 @@ async def update_page_content_api(content_id: str, content: schemas.PageContentU
     return updated_content
 
 @app.delete("/api/page-content/{content_id}")
-async def delete_page_content_api(content_id: str, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def delete_page_content_api(content_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Delete page content (admin only)"""
     _require_admin(user)
     deleted_content = await crud.delete_page_content(db, content_id)
@@ -809,7 +809,7 @@ async def delete_page_content_api(content_id: str, user=Depends(current_active_u
 
 # Blocked Time API endpoints
 @app.get("/api/blocked-times")
-async def get_blocked_times_api(start_date: str = None, end_date: str = None, db: Session = Depends(database.get_db)):
+async def get_blocked_times_api(start_date: str = None, end_date: str = None, db: AsyncSession = Depends(database.get_db)):
     """Get blocked times (admin only)"""
     start_dt = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
     end_dt = datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
@@ -818,7 +818,7 @@ async def get_blocked_times_api(start_date: str = None, end_date: str = None, db
     return {"blocked_times": blocked_times}
 
 @app.post("/api/blocked-times")
-async def create_blocked_time_api(blocked_time: schemas.BlockedTimeCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def create_blocked_time_api(blocked_time: schemas.BlockedTimeCreate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Create blocked time (admin only)"""
     _require_admin(user)
     user_id = str(getattr(user, "id", ""))
@@ -826,7 +826,7 @@ async def create_blocked_time_api(blocked_time: schemas.BlockedTimeCreate, user=
     return new_blocked_time
 
 @app.put("/api/blocked-times/{blocked_time_id}")
-async def update_blocked_time_api(blocked_time_id: str, blocked_time: schemas.BlockedTimeUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def update_blocked_time_api(blocked_time_id: str, blocked_time: schemas.BlockedTimeUpdate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Update blocked time (admin only)"""
     _require_admin(user)
     user_id = str(getattr(user, "id", ""))
@@ -836,7 +836,7 @@ async def update_blocked_time_api(blocked_time_id: str, blocked_time: schemas.Bl
     return updated_blocked_time
 
 @app.delete("/api/blocked-times/{blocked_time_id}")
-async def delete_blocked_time_api(blocked_time_id: str, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def delete_blocked_time_api(blocked_time_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Delete blocked time (admin only)"""
     _require_admin(user)
     deleted_blocked_time = await crud.delete_blocked_time(db, blocked_time_id)
@@ -938,7 +938,7 @@ async def get_news_items_api(
     return {"items": items}
 
 @app.get("/api/news/{item_id}")
-async def get_news_item_api(item_id: str, db: Session = Depends(database.get_db)):
+async def get_news_item_api(item_id: str, db: AsyncSession = Depends(database.get_db)):
     """Get a single news item by ID"""
     item = await crud.get_news_item(db, item_id)
     if not item:
@@ -946,7 +946,7 @@ async def get_news_item_api(item_id: str, db: Session = Depends(database.get_db)
     return item
 
 @app.post("/api/news")
-async def create_news_item_api(news_item: NewsItemCreate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def create_news_item_api(news_item: NewsItemCreate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Create new news item (admin only)"""
     _require_admin(user)
     user_id = str(getattr(user, "id", ""))
@@ -954,7 +954,7 @@ async def create_news_item_api(news_item: NewsItemCreate, user=Depends(current_a
     return new_item
 
 @app.put("/api/news/{item_id}")
-async def update_news_item_api(item_id: str, news_item: NewsItemUpdate, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def update_news_item_api(item_id: str, news_item: NewsItemUpdate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Update news item (admin only)"""
     _require_admin(user)
     user_id = str(getattr(user, "id", ""))
@@ -964,7 +964,7 @@ async def update_news_item_api(item_id: str, news_item: NewsItemUpdate, user=Dep
     return updated_item
 
 @app.delete("/api/news/{item_id}")
-async def delete_news_item_api(item_id: str, user=Depends(current_active_user), db: Session = Depends(database.get_db)):
+async def delete_news_item_api(item_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Delete news item (admin only)"""
     _require_admin(user)
     deleted_item = await crud.delete_news_item(db, item_id)
