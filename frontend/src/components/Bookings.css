@@ -1083,106 +1083,58 @@
   }
 }
 
-/* Desktop/PC optimizations - better spacing and layout for larger screens */
-@media (min-width: 1400px) {
+/* Better readability for time slots on desktop (over 900px) */
+@media (min-width: 901px) {
   .time-slots {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 18px;
     gap: 14px;
-    padding: 20px;
-  }
-  
-  .day-card {
-    min-width: 180px;
-  }
-  
-  .day-header {
-    padding: 18px 16px;
-  }
-  
-  .day-name {
-    font-size: 15px;
-  }
-  
-  .day-date {
-    font-size: 13px;
   }
   
   .time-slot {
+    padding: 16px 10px;
     min-height: 70px;
-    padding: 16px 12px;
+    font-size: 15px;
   }
   
   .time-text {
     font-size: 16px;
+    letter-spacing: 0.03em;
+  }
+}
+
+@media (min-width: 1200px) {
+  .time-slots {
+    padding: 20px;
+    gap: 16px;
   }
   
-  .calendar-grid {
-    gap: 18px;
-    padding: 20px;
+  .time-slot {
+    padding: 18px 12px;
+    min-height: 75px;
+    font-size: 15px;
+  }
+  
+  .time-text {
+    font-size: 17px;
+    letter-spacing: 0.03em;
   }
 }
 
 @media (min-width: 1600px) {
   .time-slots {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
     padding: 24px;
-  }
-  
-  .calendar-grid {
-    gap: 22px;
-    padding: 24px;
-  }
-  
-  .day-card {
-    min-width: 200px;
-  }
-  
-  .time-slot {
-    min-height: 75px;
-    padding: 18px 14px;
-  }
-  
-  .bookings-container {
-    padding: calc(var(--navbar-height) + 48px) 48px 48px 48px;
-  }
-  
-  .bookings-content {
-    gap: 48px;
-  }
-  
-  .booking-panel {
-    width: 450px;
-  }
-}
-
-@media (min-width: 1920px) {
-  .bookings-container {
-    max-width: 2000px;
-  }
-  
-  .calendar-grid {
-    gap: 24px;
-    padding: 28px;
-  }
-  
-  .day-card {
-    min-width: 220px;
-  }
-  
-  .time-slots {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px;
-    padding: 28px;
   }
   
   .time-slot {
+    padding: 20px 14px;
     min-height: 80px;
-    padding: 20px 16px;
+    font-size: 16px;
   }
   
   .time-text {
-    font-size: 17px;
+    font-size: 18px;
+    letter-spacing: 0.04em;
   }
 }
 
