@@ -35,7 +35,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create uploads directory if it doesn't exist
-UPLOAD_DIR = Path("uploads/images")
+UPLOAD_ROOT = Path(os.getenv("UPLOAD_ROOT", "uploads"))
+UPLOAD_DIR = UPLOAD_ROOT / "images"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @asynccontextmanager
@@ -113,7 +114,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 # Mount static files directory to serve uploaded images (must come before routes)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_ROOT)), name="uploads")
 
 # Auth-rutere
 app.include_router(
