@@ -10,6 +10,14 @@ function normalizeImageUrl(url) {
   return `${API}/${url}`;
 }
 
+function normalizeContentImages(html) {
+  if (!html) return html;
+  return html.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, src) => {
+    const normalized = normalizeImageUrl(src);
+    return match.replace(src, normalized);
+  });
+}
+
 export default function NyhetDetail() {
   const { id } = useParams();
   const [item, setItem] = useState(null);
@@ -125,7 +133,7 @@ export default function NyhetDetail() {
             lineHeight: "1.8",
             fontSize: "18px"
           }}
-          dangerouslySetInnerHTML={{ __html: item.content }}
+          dangerouslySetInnerHTML={{ __html: normalizeContentImages(item.content) }}
         />
 
         <div style={{ marginTop: "40px", textAlign: "center" }}>
