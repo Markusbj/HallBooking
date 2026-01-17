@@ -56,7 +56,7 @@ app = FastAPI(title="HallBooking API", lifespan=lifespan)
 # Hent tillatte origins fra environment variable, eller bruk default for utvikling
 allowed_origins_str = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://www.tgtromso.no,https://tgtromso.no"
 )
 # Split og strippe whitespace, fjern tomme strings
 ALLOWED_ORIGINS: List[str] = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
@@ -79,7 +79,7 @@ else:
     # Utvikling: tillat localhost med regex
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https?://(www\.)?tgtromso\.no$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
