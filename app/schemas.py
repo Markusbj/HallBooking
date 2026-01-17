@@ -6,6 +6,8 @@ import uuid
 
 class UserRead(schemas.BaseUser[uuid.UUID]):
     full_name: Optional[str] = None
+    privacy_accepted: Optional[bool] = None
+    privacy_accepted_date: Optional[datetime] = None
 
 class UserCreate(schemas.BaseUserCreate):
     full_name: Optional[str] = None

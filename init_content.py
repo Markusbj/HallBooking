@@ -93,6 +93,12 @@ DEFAULT_CONTENT = [
         "content": "Våre instruktører har alle lang erfaring og er sertifisert innen hundetrening. Vi jobber kontinuerlig med å oppdatere vår kunnskap og følge de nyeste treningsmetodene.",
         "content_type": "text"
     },
+    {
+        "page_name": "instruktorer",
+        "section_name": "instructorsList",
+        "content": "[{\"name\":\"Lisbeth Drotz\",\"title\":\"Instruktør\",\"experience\":\"15 år\",\"specialties\":[\"Grunnleggende lydighet\",\"Spor\"],\"description\":\"Lisbeth har deltat.\",\"image_url\":\"\"},{\"name\":\"Roy Drotz\",\"title\":\"Instruktør\",\"experience\":\"10 år\",\"specialties\":[\"Avansert trening\",\"Konkurranse\",\"Privat trening\"],\"description\":\"Roy har stor erfaring med hundetrening og hjelper hundeeiere med både grunnleggende og avansert trening.\",\"image_url\":\"\"}]",
+        "content_type": "json"
+    },
 
     # News page content
     {

@@ -93,6 +93,7 @@ Dette systemet gir administratorer mulighet til å redigere innhold på alle sid
 - `pageSubtitle`: Undertekst på siden
 - `instructorsTitle`: Tittel for instruktører
 - `instructorsDescription`: Beskrivelse av instruktørene
+- `instructorsList`: Instruktørliste (JSON med navn, bilde, m.m.)
 - `instructor1ImageUrl`: Bilde-URL for første instruktør
 - `instructor2ImageUrl`: Bilde-URL for andre instruktør
 

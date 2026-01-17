@@ -3,6 +3,7 @@ import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 export default function Instruktorer() {
   const { content, loading, error } = usePageContent("instruktorer");
+  const instructorsListRaw = getContentValue(content, "instructorsList", "");
   const instructor1ImageUrl = getContentValue(content, "instructor1ImageUrl", "");
   const instructor2ImageUrl = getContentValue(content, "instructor2ImageUrl", "");
 
@@ -26,7 +27,7 @@ export default function Instruktorer() {
       </div>
     );
   }
-  const instructors = [
+  const defaultInstructors = [
     {
       name: "Lisbeth Drotz",
       title: "Instruktør",
@@ -34,7 +35,7 @@ export default function Instruktorer() {
       specialties: ["Grunnleggende lydighet", "Spor"],
       description: "Lisbeth har deltat.",
       image: "👩‍🏫",
-      imageUrl: instructor1ImageUrl
+      image_url: instructor1ImageUrl
     },
     {
       name: "Roy Drotz",
@@ -43,9 +44,30 @@ export default function Instruktorer() {
       specialties: ["Avansert trening", "Konkurranse", "Privat trening"],
       description: "Roy har stor erfaring med hundetrening og hjelper hundeeiere med både grunnleggende og avansert trening.",
       image: "👨‍🏫",
-      imageUrl: instructor2ImageUrl
+      image_url: instructor2ImageUrl
     }
   ];
+  let instructors = defaultInstructors;
+  if (instructorsListRaw) {
+    try {
+      const parsed = JSON.parse(instructorsListRaw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        instructors = parsed.map((item, idx) => ({
+          name: item.name || `Instruktør ${idx + 1}`,
+          title: item.title || "Instruktør",
+          experience: item.experience || "",
+          specialties: Array.isArray(item.specialties)
+            ? item.specialties
+            : typeof item.specialties === "string"
+              ? item.specialties.split(",").map((s) => s.trim()).filter(Boolean)
+              : [],
+          description: item.description || "",
+          image: item.image || "👩‍🏫",
+          image_url: item.image_url || ""
+        }));
+      }
+    } catch {}
+  }
 
   return (
     <div className="page-container">
@@ -64,10 +86,10 @@ export default function Instruktorer() {
           {instructors.map((instructor, index) => (
             <div key={index} className="instructor-card">
               <div className="instructor-image">
-                {instructor.imageUrl ? (
+                {instructor.image_url ? (
                   <img
                     className="instructor-photo"
-                    src={instructor.imageUrl}
+                    src={instructor.image_url}
                     alt={instructor.name}
                     loading="lazy"
                   />

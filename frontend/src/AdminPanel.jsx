@@ -43,6 +43,10 @@ function AdminPanel() {
     image_url: ''
   });
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingInstructorIndex, setUploadingInstructorIndex] = useState(null);
+  const [showInstructorEditor, setShowInstructorEditor] = useState(false);
+  const [instructorList, setInstructorList] = useState([]);
+  const [savingInstructors, setSavingInstructors] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     email: '',
@@ -388,48 +392,50 @@ function AdminPanel() {
     }
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+  const uploadImage = async (file) => {
+    if (!file) return null;
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Ugyldig filtype. Tillatte typer: JPEG, PNG, GIF, WebP');
-      return;
+      throw new Error('Ugyldig filtype. Tillatte typer: JPEG, PNG, GIF, WebP');
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('Bildet er for stort. Maks størrelse er 5MB');
-      return;
+      throw new Error('Bildet er for stort. Maks størrelse er 5MB');
     }
 
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API}/api/upload-image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Kunne ikke laste opp bilde' }));
+      throw new Error(errorData.detail || 'Kunne ikke laste opp bilde');
+    }
+
+    const data = await response.json();
+    return data.url.startsWith('http') ? data.url : `${API}${data.url}`;
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     setUploadingImage(true);
     setError(null);
-
     try {
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch(`${API}/api/upload-image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Kunne ikke laste opp bilde' }));
-        throw new Error(errorData.detail || 'Kunne ikke laste opp bilde');
+      const imageUrl = await uploadImage(file);
+      if (imageUrl) {
+        setNewsItemForm({ ...newsItemForm, image_url: imageUrl });
       }
-
-      const data = await response.json();
-      // Use full URL if API returns relative path
-      const imageUrl = data.url.startsWith('http') ? data.url : `${API}${data.url}`;
-      setNewsItemForm({ ...newsItemForm, image_url: imageUrl });
     } catch (err) {
       setError(err.message || 'Kunne ikke laste opp bilde');
     } finally {
@@ -599,6 +605,7 @@ function AdminPanel() {
     'locationText': 'Beskrivelse av lokasjon',
     'instructorsTitle': 'Tittel for instruktører',
     'instructorsDescription': 'Beskrivelse av instruktører',
+    'instructorsList': 'Instruktørliste',
     'instructor1ImageUrl': 'Instruktør 1 - Bilde URL',
     'instructor2ImageUrl': 'Instruktør 2 - Bilde URL',
     'historyTitle': 'Tittel for historie',
@@ -636,6 +643,7 @@ function AdminPanel() {
     'locationText': 'Beskrivelse av lokasjonen',
     'instructorsTitle': 'Tittelen for instruktører-seksjonen',
     'instructorsDescription': 'Beskrivelse av instruktørene',
+    'instructorsList': 'Liste over instruktører (navn, bilde, beskrivelse, m.m.)',
     'instructor1ImageUrl': 'Bilde-URL for første instruktør',
     'instructor2ImageUrl': 'Bilde-URL for andre instruktør',
     'historyTitle': 'Tittelen for historie-seksjonen',
@@ -689,6 +697,7 @@ function AdminPanel() {
         { value: 'pageSubtitle', label: 'Undertekst på siden', description: 'Beskrivende tekst under sidetittelen' },
         { value: 'instructorsTitle', label: 'Tittel for instruktører', description: 'Tittelen for instruktører-seksjonen' },
         { value: 'instructorsDescription', label: 'Beskrivelse av instruktører', description: 'Beskrivelse av instruktørene' },
+        { value: 'instructorsList', label: 'Instruktørliste', description: 'Liste over instruktører (navn, bilde, beskrivelse, m.m.)' },
         { value: 'instructor1ImageUrl', label: 'Instruktør 1 - Bilde URL', description: 'Bilde-URL for første instruktør' },
         { value: 'instructor2ImageUrl', label: 'Instruktør 2 - Bilde URL', description: 'Bilde-URL for andre instruktør' }
       ],
@@ -834,6 +843,7 @@ function AdminPanel() {
                     <option value="text">Tekst</option>
                     <option value="html">HTML</option>
                     <option value="markdown">Markdown</option>
+                    <option value="json">JSON</option>
                   </select>
                 </div>
                 <div className="form-group">
@@ -859,7 +869,51 @@ function AdminPanel() {
 
           {Object.entries(groupedContent).map(([pageName, sections]) => (
             <div key={pageName} className="page-section">
-              <h3>{pageLabels[pageName] || pageName}</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3>{pageLabels[pageName] || pageName}</h3>
+                {pageName === 'instruktorer' && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    type="button"
+                    onClick={() => {
+                      const contentItem = pageContent.find(
+                        (item) => item.page_name === 'instruktorer' && item.section_name === 'instructorsList'
+                      );
+                      let parsed = [];
+                      if (contentItem && contentItem.content) {
+                        try {
+                          const data = JSON.parse(contentItem.content);
+                          if (Array.isArray(data)) parsed = data;
+                        } catch {}
+                      }
+                      if (!parsed.length) {
+                        parsed = [
+                          {
+                            name: "Lisbeth Drotz",
+                            title: "Instruktør",
+                            experience: "15 år",
+                            specialties: ["Grunnleggende lydighet", "Spor"],
+                            description: "Lisbeth har deltat.",
+                            image_url: ""
+                          },
+                          {
+                            name: "Roy Drotz",
+                            title: "Instruktør",
+                            experience: "10 år",
+                            specialties: ["Avansert trening", "Konkurranse", "Privat trening"],
+                            description: "Roy har stor erfaring med hundetrening og hjelper hundeeiere med både grunnleggende og avansert trening.",
+                            image_url: ""
+                          }
+                        ];
+                      }
+                      setInstructorList(parsed);
+                      setShowInstructorEditor(true);
+                    }}
+                  >
+                    Administrer instruktører
+                  </button>
+                )}
+              </div>
               {sections.map((item) => (
                 <div key={item.id} className="content-item">
                   <div className="content-info">
@@ -1224,6 +1278,7 @@ function AdminPanel() {
                   <option value="text">Tekst</option>
                   <option value="html">HTML</option>
                   <option value="markdown">Markdown</option>
+                  <option value="json">JSON</option>
                 </select>
               </div>
               <div className="form-group">
@@ -1240,6 +1295,225 @@ function AdminPanel() {
                 <button type="button" className="btn btn-ghost" onClick={() => setEditingContent(null)}>Avbryt</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showInstructorEditor && (
+        <div className="content-editor-modal">
+          <div className="modal-content" style={{ maxWidth: 900 }}>
+            <h3>Administrer instruktører</h3>
+            <p className="content-description">
+              Legg til, rediger eller fjern instruktører. Bilder kan lastes opp her.
+            </p>
+            <div className="form-group" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => {
+                  setInstructorList([
+                    ...instructorList,
+                    {
+                      name: "",
+                      title: "Instruktør",
+                      experience: "",
+                      specialties: [],
+                      description: "",
+                      image_url: ""
+                    }
+                  ]);
+                }}
+              >
+                Legg til instruktør
+              </button>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => setShowInstructorEditor(false)}
+              >
+                Lukk
+              </button>
+            </div>
+
+            <div className="content-list" style={{ marginTop: 12 }}>
+              {instructorList.map((instructor, index) => (
+                <div key={index} className="content-item" style={{ marginBottom: 16 }}>
+                  <div className="content-info" style={{ flex: 1 }}>
+                    <div className="form-group">
+                      <label>Navn</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={instructor.name || ""}
+                        onChange={(e) => {
+                          const next = [...instructorList];
+                          next[index] = { ...next[index], name: e.target.value };
+                          setInstructorList(next);
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Tittel</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={instructor.title || ""}
+                        onChange={(e) => {
+                          const next = [...instructorList];
+                          next[index] = { ...next[index], title: e.target.value };
+                          setInstructorList(next);
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Erfaring</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={instructor.experience || ""}
+                        onChange={(e) => {
+                          const next = [...instructorList];
+                          next[index] = { ...next[index], experience: e.target.value };
+                          setInstructorList(next);
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Spesialiteter (kommaseparert)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={Array.isArray(instructor.specialties) ? instructor.specialties.join(", ") : (instructor.specialties || "")}
+                        onChange={(e) => {
+                          const list = e.target.value
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          const next = [...instructorList];
+                          next[index] = { ...next[index], specialties: list };
+                          setInstructorList(next);
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Beskrivelse</label>
+                      <textarea
+                        className="form-input"
+                        rows="3"
+                        value={instructor.description || ""}
+                        onChange={(e) => {
+                          const next = [...instructorList];
+                          next[index] = { ...next[index], description: e.target.value };
+                          setInstructorList(next);
+                        }}
+                      ></textarea>
+                    </div>
+                    <div className="form-group">
+                      <label>Bilde</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                            onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+                              setUploadingInstructorIndex(index);
+                              setError(null);
+                              try {
+                                const imageUrl = await uploadImage(file);
+                                if (imageUrl) {
+                                  const next = [...instructorList];
+                                  next[index] = { ...next[index], image_url: imageUrl };
+                                  setInstructorList(next);
+                                }
+                              } catch (err) {
+                                setError(err.message || 'Kunne ikke laste opp bilde');
+                              } finally {
+                                setUploadingInstructorIndex(null);
+                              }
+                            }}
+                            disabled={uploadingInstructorIndex !== null}
+                            style={{ flex: 1 }}
+                            className="form-input"
+                          />
+                          {uploadingInstructorIndex === index && <span>Laster opp...</span>}
+                        </div>
+                        {instructor.image_url && (
+                          <div style={{ marginTop: '10px' }}>
+                            <img
+                              src={instructor.image_url}
+                              alt={`Preview ${instructor.name || ""}`}
+                              style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', objectFit: 'cover' }}
+                            />
+                          </div>
+                        )}
+                        <input
+                          type="url"
+                          value={instructor.image_url || ""}
+                          onChange={(e) => {
+                            const next = [...instructorList];
+                            next[index] = { ...next[index], image_url: e.target.value };
+                            setInstructorList(next);
+                          }}
+                          className="form-input"
+                          placeholder="Eller lim inn bilde-URL her..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="content-actions">
+                    <button
+                      className="btn btn-sm btn-danger"
+                      type="button"
+                      onClick={() => {
+                        const next = instructorList.filter((_, i) => i !== index);
+                        setInstructorList(next);
+                      }}
+                    >
+                      Fjern
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="form-actions">
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={savingInstructors}
+                onClick={async () => {
+                  setSavingInstructors(true);
+                  setError(null);
+                  try {
+                    const contentItem = pageContent.find(
+                      (item) => item.page_name === 'instruktorer' && item.section_name === 'instructorsList'
+                    );
+                    const payload = JSON.stringify(instructorList);
+                    if (contentItem) {
+                      await saveContent(contentItem.id, payload, 'json');
+                    } else {
+                      await createContent('instruktorer', 'instructorsList', payload, 'json');
+                    }
+                    setShowInstructorEditor(false);
+                  } catch (err) {
+                    setError(err.message || 'Kunne ikke lagre instruktører');
+                  } finally {
+                    setSavingInstructors(false);
+                  }
+                }}
+              >
+                {savingInstructors ? 'Lagrer...' : 'Lagre instruktører'}
+              </button>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => setShowInstructorEditor(false)}
+              >
+                Avbryt
+              </button>
+            </div>
           </div>
         </div>
       )}
