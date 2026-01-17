@@ -3,6 +3,13 @@ import { useParams, Link } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
+function normalizeImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/")) return `${API}${url}`;
+  return `${API}/${url}`;
+}
+
 export default function NyhetDetail() {
   const { id } = useParams();
   const [item, setItem] = useState(null);
@@ -103,7 +110,7 @@ export default function NyhetDetail() {
         {item.image_url && (
           <div style={{ marginBottom: "30px", borderRadius: "12px", overflow: "hidden" }}>
             <img
-              src={item.image_url}
+              src={normalizeImageUrl(item.image_url)}
               alt={item.title}
               style={{ width: "100%", maxHeight: "500px", objectFit: "cover" }}
             />

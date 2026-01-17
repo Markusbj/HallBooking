@@ -4,6 +4,13 @@ import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
+function normalizeImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/")) return `${API}${url}`;
+  return `${API}/${url}`;
+}
+
 export default function LandingPage() {
   const isLoggedIn = !!localStorage.getItem("token");
   const { content, loading, error } = usePageContent("landing");
@@ -102,7 +109,7 @@ export default function LandingPage() {
                   {item.image_url && (
                     <div style={{ width: "100%", height: "200px", overflow: "hidden", borderRadius: "8px 8px 0 0", marginBottom: "15px" }}>
                       <img
-                        src={item.image_url}
+                        src={normalizeImageUrl(item.image_url)}
                         alt={item.title}
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       />
