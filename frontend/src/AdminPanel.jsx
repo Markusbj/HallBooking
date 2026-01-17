@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const fetchWithCredentials = (url, options = {}) =>
+  window.fetch(url, { ...options, credentials: "include" });
+const fetch = fetchWithCredentials;
 
 function AdminPanel() {
   const [activeTab, setActiveTab] = useState('content');
@@ -74,10 +77,8 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/page-content`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -99,11 +100,9 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/page-content/${contentId}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -130,11 +129,9 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/page-content`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -161,10 +158,8 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/blocked-times`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -186,11 +181,9 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/blocked-times`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -220,11 +213,9 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/blocked-times/${blockedTimeId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -245,10 +236,8 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/admin/bookings`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -270,10 +259,8 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/admin/users`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -295,10 +282,8 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/news`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -321,7 +306,6 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const isNew = !editingNewsItem || editingNewsItem.id === 'new' || !editingNewsItem.id;
       const url = isNew
         ? `${API}/api/news`
@@ -336,7 +320,6 @@ function AdminPanel() {
       const response = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
@@ -371,11 +354,9 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/news/${itemId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -405,15 +386,11 @@ function AdminPanel() {
       throw new Error('Bildet er for stort. Maks størrelse er 5MB');
     }
 
-    const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
 
     const response = await fetch(`${API}/api/upload-image`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
       body: formData
     });
 
@@ -472,11 +449,9 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/bookings/${editingBooking.id}`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -515,11 +490,9 @@ function AdminPanel() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API}/bookings/${bookingId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -1764,11 +1737,9 @@ function AdminPanel() {
                 setLoading(true);
                 setError(null);
                 try {
-                  const token = localStorage.getItem('token');
                   const response = await fetch(`${API}/api/admin/users`, {
                     method: 'POST',
                     headers: {
-                      'Authorization': `Bearer ${token}`,
                       'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(newUserForm)

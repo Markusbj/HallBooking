@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "./assets/logo.png";
 
-export default function NavBar() {
+export default function NavBar({ isLoggedIn, userEmail, userFullName, isAdmin, onLogout }) {
   const loc = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -10,12 +10,10 @@ export default function NavBar() {
   const [contactPhone, setContactPhone] = useState(localStorage.getItem("contact_phone") || "");
   const [darkMode, setDarkMode] = useState(localStorage.getItem("dark_mode") === "true");
   const [userInfo, setUserInfo] = useState({
-    email: localStorage.getItem("userEmail") || "",
-    full_name: localStorage.getItem("userFullName") || "",
-    is_superuser: localStorage.getItem("isAdmin") === "true"
+    email: "",
+    full_name: "",
+    is_superuser: false
   });
-  const isLoggedIn = !!localStorage.getItem("token");
-  const isAdmin = localStorage.getItem("isAdmin") === "true";
   const ref = useRef(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -33,27 +31,23 @@ export default function NavBar() {
     }
   }, [darkMode]);
 
-  // Load user info when logged in
   useEffect(() => {
     if (isLoggedIn) {
-      const token = localStorage.getItem("token");
-      const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-      
-      fetch(`${API}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        setUserInfo({
-          email: data.email || "",
-          full_name: data.full_name || "",
-          is_superuser: data.is_superuser || false
-        });
-        localStorage.setItem("userFullName", data.full_name || "");
-      })
-      .catch(err => console.error("Failed to load user info:", err));
+      setUserInfo((prev) => ({
+        ...prev,
+        email: userEmail || prev.email || "",
+        full_name: userFullName || prev.full_name || "",
+        is_superuser: Boolean(isAdmin)
+      }));
+    } else {
+      setUserInfo((prev) => ({
+        ...prev,
+        email: "",
+        full_name: "",
+        is_superuser: false
+      }));
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, userEmail, userFullName, isAdmin]);
 
   useEffect(() => {
     function onDocClick(e) {
@@ -81,10 +75,11 @@ export default function NavBar() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("isAdmin");
-    window.location.href = "/login";
+    if (onLogout) {
+      onLogout();
+    } else {
+      window.location.href = "/login";
+    }
   }
 
   return (

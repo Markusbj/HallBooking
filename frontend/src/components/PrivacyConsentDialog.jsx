@@ -4,7 +4,7 @@ import './PrivacyConsentDialog.css';
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function PrivacyConsentDialog({ userEmail, token, onAccepted, onRejected }) {
+export default function PrivacyConsentDialog({ userEmail, onAccepted, onRejected }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -16,13 +16,13 @@ export default function PrivacyConsentDialog({ userEmail, token, onAccepted, onR
       const response = await fetch(`${API}/users/me`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           privacy_accepted: true,
           privacy_accepted_date: new Date().toISOString()
-        })
+        }),
+        credentials: "include"
       });
 
       if (!response.ok) {
@@ -46,11 +46,9 @@ export default function PrivacyConsentDialog({ userEmail, token, onAccepted, onR
       'For å bruke tjenesten må du akseptere personvernserklæringen. ' +
       'Hvis du ikke aksepterer, vil du bli logget ut. Vil du fortsette med utlogging?'
     )) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('isAdmin');
       if (onRejected) {
         onRejected();
+        return;
       }
       window.location.href = '/';
     }

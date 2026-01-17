@@ -23,14 +23,13 @@ export default function Account() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
-  const token = localStorage.getItem("token") || "";
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
         const res = await fetch(`${API}/users/me`, { 
-          headers: token ? { Authorization: `Bearer ${token}` } : {} 
+          credentials: "include"
         });
         if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
         const data = await res.json();
@@ -49,7 +48,7 @@ export default function Account() {
       }
     }
     load();
-  }, [token]);
+  }, []);
 
   async function save() {
     setSaving(true);
@@ -59,13 +58,13 @@ export default function Account() {
       const res = await fetch(`${API}/users/me`, {
         method: "PATCH",
         headers: { 
-          "Content-Type": "application/json", 
-          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ 
           full_name: profile.full_name, 
           phone: profile.phone 
         }),
+        credentials: "include",
       });
       if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
       const data = await res.json();
@@ -107,13 +106,13 @@ export default function Account() {
       const res = await fetch(`${API}/users/me/change-password`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json", 
-          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           current_password: passwordForm.current_password,
           new_password: passwordForm.new_password
         }),
+        credentials: "include",
       });
       
       if (!res.ok) {

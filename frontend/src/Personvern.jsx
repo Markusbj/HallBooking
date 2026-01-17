@@ -104,15 +104,15 @@ export default function Personvern() {
             <section>
               <h2>7. Informasjonskapsler og lokal lagring</h2>
               <p>
-                Vi bruker localStorage for å lagre:
+                Vi bruker httpOnly cookies og lokal lagring for å:
               </p>
               <ul>
-                <li><strong>Autentiseringstoken:</strong> Nødvendig for å holde deg innlogget (utløper etter 25 minutter)</li>
+                <li><strong>Autentiseringstoken:</strong> Lagreres i en httpOnly cookie (utløper etter 25 minutter)</li>
                 <li><strong>Sesjonsdata:</strong> For å sikre at du kun er innlogget på maks 2 enheter samtidig</li>
                 <li><strong>Preferanser:</strong> Som mørk modus (valgfritt, lagres kun hvis du aksepterer)</li>
               </ul>
               <p>
-                Disse dataene lagres lokalt på din enhet og sendes ikke til tredjeparter.
+                Autentiseringstoken er utilgjengelig for JavaScript og sendes kun til vår egen server.
               </p>
             </section>
 

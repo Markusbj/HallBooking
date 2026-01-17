@@ -46,6 +46,7 @@ export default function Login({ onLogin }) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formData,
+      credentials: "include",
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -65,6 +66,7 @@ export default function Login({ onLogin }) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formData,
+      credentials: "include",
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -96,28 +98,26 @@ export default function Login({ onLogin }) {
         return;
       }
 
-      const token = tokenResult.token;
-      localStorage.setItem("token", token);
 
       // Fetch user info after successful login
       try {
         const userRes = await fetch(`${API}/users/me`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
         if (userRes.ok) {
           const userData = await userRes.json();
 
           // Register session on backend ONLY if user has accepted cookies
           // Session tracking requires consent under GDPR
-          const cookieConsent = localStorage.getItem('cookieConsent');
+              const cookieConsent = localStorage.getItem('cookieConsent');
           if (cookieConsent === 'accepted') {
             try {
               await fetch(`${API}/api/auth/register-session`, {
                 method: 'POST',
                 headers: {
-                  Authorization: `Bearer ${token}`,
                   'Content-Type': 'application/json'
                 },
+                    credentials: "include",
               });
             } catch (err) {
               // Don't fail login if session registration fails
@@ -125,16 +125,16 @@ export default function Login({ onLogin }) {
             }
           }
 
-          if (onLogin) {
-            onLogin(userData.email, userData.is_superuser, token);
-          }
+              if (onLogin) {
+                onLogin(userData.email, userData.is_superuser);
+              }
         } else {
           // Fallback if user info fetch fails
-          if (onLogin) onLogin(email, false, token);
+              if (onLogin) onLogin(email, false);
         }
       } catch (err) {
         // Fallback if user info fetch fails
-        if (onLogin) onLogin(email, false, token);
+            if (onLogin) onLogin(email, false);
       }
 
       navigate("/home", { replace: true });

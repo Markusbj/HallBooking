@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from contextlib import asynccontextmanager
+from starlette.datastructures import MutableHeaders
 from . import models, schemas, crud, database
 from .database import Base, engine, get_db
 from .models import User
@@ -89,6 +90,17 @@ else:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Inject bearer token from httpOnly cookie when missing
+@app.middleware("http")
+async def attach_auth_cookie(request: Request, call_next):
+    if request.method != "OPTIONS":
+        token = request.cookies.get("access_token")
+        if token:
+            headers = MutableHeaders(scope=request.scope)
+            if "authorization" not in headers:
+                headers["authorization"] = f"Bearer {token}"
+    return await call_next(request)
 
 # Simple request logger
 @app.middleware("http")
@@ -233,11 +245,26 @@ async def token_pkce(
     access_token = await jwt_strategy.write_token(user)
     expires_in = 60 * 25
 
-    return {
+    response = JSONResponse({
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": expires_in
-    }
+    })
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=ENVIRONMENT == "production",
+        samesite="lax",
+        max_age=expires_in
+    )
+    return response
+
+@app.post("/auth/logout", tags=["auth"])
+async def logout_pkce():
+    response = JSONResponse({"message": "Logged out"})
+    response.delete_cookie("access_token")
+    return response
 
 # Define custom PATCH /users/me BEFORE including users router
 # This prevents FastAPI Users' default handler from being used

@@ -50,8 +50,7 @@ function isSlotInPast(dateStr, hour) {
   return slotDate.getTime() < Date.now();
 }
 
-export default function Bookings({ token: propToken }) {
-  const token = propToken || localStorage.getItem("token") || "";
+export default function Bookings({ isAdmin }) {
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date()));
   const [days, setDays] = useState([]);
   const [colors, setColors] = useState({});
@@ -60,7 +59,6 @@ export default function Bookings({ token: propToken }) {
   const [hall, setHall] = useState("Hovedsal");
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
-  const [isAdmin] = useState(localStorage.getItem("isAdmin") === "true");
   const [openDay, setOpenDay] = useState(null); // date string shown in top-left panel
   const [showWeekSelector, setShowWeekSelector] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
@@ -90,7 +88,7 @@ export default function Bookings({ token: propToken }) {
 
   async function fetchDay(dateStr) {
     const res = await fetch(`${API}/bookings/${dateStr}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
     });
     if (!res.ok) throw new Error(`Kunne ikke hente ${dateStr}`);
     return res.json();
@@ -207,8 +205,9 @@ export default function Bookings({ token: propToken }) {
     try {
       const res = await fetch(`${API}/bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        credentials: "include",
       });
       if (!res.ok) {
         let data = null; try { data = await res.json(); } catch {}
@@ -226,7 +225,7 @@ export default function Bookings({ token: propToken }) {
     try {
       const res = await fetch(`${API}/bookings/${bookingId}`, {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Sletting feilet");
       await fetchWeek(); setSelected(null);

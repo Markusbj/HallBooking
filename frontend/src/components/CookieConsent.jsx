@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './CookieConsent.css';
 
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
 export default function CookieConsent() {
   const [showBanner, setShowBanner] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -20,7 +22,7 @@ export default function CookieConsent() {
     setShowBanner(false);
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     localStorage.setItem('cookieConsent', 'rejected');
     localStorage.setItem('cookieConsentDate', new Date().toISOString());
     
@@ -31,17 +33,24 @@ export default function CookieConsent() {
     
     // Important: If user is logged in and rejects cookies, they should be logged out
     // since session tracking requires cookie/localStorage consent
-    const isLoggedIn = !!localStorage.getItem('token');
+    let isLoggedIn = false;
+    try {
+      const res = await fetch(`${API}/users/me`, { credentials: "include" });
+      isLoggedIn = res.ok;
+    } catch {
+      isLoggedIn = false;
+    }
     if (isLoggedIn) {
       // Inform user that logout is required
       if (window.confirm(
         'Du er for øyeblikket innlogget. For å respektere ditt valg om å avvise cookies, må vi logge deg ut. ' +
         'Du kan fortsatt bruke tjenesten uten å være innlogget. Vil du fortsette med utlogging?'
       )) {
-        // Clear all authentication data
-        localStorage.removeItem('token');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('isAdmin');
+        // Clear server-side auth cookie
+        await fetch(`${API}/auth/logout`, {
+          method: 'POST',
+          credentials: "include"
+        }).catch(() => {});
         // Reload page to reflect logout state
         window.location.href = '/';
       } else {
@@ -64,10 +73,10 @@ export default function CookieConsent() {
         <div className="cookie-consent-text">
           <h3>🍪 Informasjonskapsler og lokal lagring</h3>
           <p>
-            Vi bruker lokalt lagret data (localStorage) for å:
+            Vi bruker cookies og lokalt lagret data for å:
           </p>
           <ul>
-            <li>Lagre din innloggingsstatus og autentiseringstoken (nødvendig for innlogging)</li>
+            <li>Lagre innloggingsstatus i en server-side cookie (nødvendig for innlogging)</li>
             <li>Spore aktive sesjoner for sikkerhet (maks 2 enheter samtidig)</li>
             <li>Lagre dine preferanser (valgfritt, som mørk modus)</li>
           </ul>
@@ -99,7 +108,7 @@ export default function CookieConsent() {
             <div className="cookie-details" style={{ marginTop: '15px', padding: '15px', background: '#f5f5f5', borderRadius: '8px', fontSize: '13px' }}>
               <h4>Hva vi lagrer:</h4>
               <ul>
-                <li><strong>Autentiseringstoken:</strong> Nødvendig for å holde deg innlogget (utløper etter 25 minutter)</li>
+                <li><strong>Autentiseringstoken:</strong> Lagreres som httpOnly cookie (utløper etter 25 minutter)</li>
                 <li><strong>Sesjonsdata:</strong> For å sikre at du kun er innlogget på maks 2 enheter samtidig</li>
                 <li><strong>Preferanser:</strong> Som mørk modus og kontaktopplysninger (hvis du velger å lagre dem)</li>
               </ul>

@@ -4,11 +4,10 @@ import { Link } from "react-router-dom";
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 export default function Home(props) {
-  const { userEmail, isAdmin, onLogout, token: propToken } = props;
+  const { userEmail, isAdmin, onLogout } = props;
   const [myBookings, setMyBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const token = propToken || localStorage.getItem("token") || "";
 
   useEffect(() => {
     fetchMyBookings();
@@ -20,7 +19,7 @@ export default function Home(props) {
     setError(null);
     try {
       const res = await fetch(`${API}/users/me/bookings`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
       });
       if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
       const data = await res.json();

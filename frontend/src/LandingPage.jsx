@@ -15,8 +15,7 @@ function logImageError(url, context) {
   console.error("[image] failed to load", { context, url });
 }
 
-export default function LandingPage() {
-  const isLoggedIn = !!localStorage.getItem("token");
+export default function LandingPage({ isLoggedIn = false }) {
   const { content, loading, error } = usePageContent("landing");
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loadingNews, setLoadingNews] = useState(true);

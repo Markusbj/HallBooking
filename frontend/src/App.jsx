@@ -31,18 +31,15 @@ const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [userFullName, setUserFullName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [token, setToken] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(true); // Default to true to avoid showing dialog if not logged in
   const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
 
   useEffect(() => {
-    const t = localStorage.getItem("token");
-    if (!t) { setIsLoggedIn(false); return; }
-
-    // Verifiser token mot backend
+    // Verifiser innloggingsstatus via cookie
     fetch(`${API}/users/me`, {
-      headers: { Authorization: `Bearer ${t}` },
+      credentials: "include",
     })
       .then((res) => {
         if (!res.ok) throw new Error("invalid token");
@@ -50,8 +47,8 @@ function App() {
       })
       .then(async (user) => {
         setIsLoggedIn(true);
-        setToken(t);
         setUserEmail(user.email || "");
+        setUserFullName(user.full_name || "");
         setIsAdmin(Boolean(user.is_superuser || user.is_admin));
         
         // Check if user has accepted privacy policy
@@ -70,7 +67,7 @@ function App() {
           try {
             await fetch(`${API}/api/auth/update-session`, {
               method: 'POST',
-              headers: { Authorization: `Bearer ${t}` },
+              credentials: "include",
             });
           } catch (err) {
             // Don't fail if session update fails, just log it
@@ -79,38 +76,31 @@ function App() {
         }
       })
       .catch(() => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userEmail");
-        localStorage.removeItem("isAdmin");
         setIsLoggedIn(false);
-        setToken("");
+        setUserFullName("");
       });
   }, []);
 
-  const handleLogin = (email, admin, tok) => {
+  const handleLogin = (email, admin) => {
     // GDPR: Authentication tokens are considered "strictly necessary" cookies
     // under GDPR Article 5(3) ePrivacy Directive, but we still need to:
     // 1. Inform users about what we store
     // 2. Only use data for the stated purpose (authentication)
     // 3. Respect user's right to delete their data
     
-    // Store authentication data (necessary for service delivery)
-    localStorage.setItem("token", tok);
-    localStorage.setItem("userEmail", email || "");
-    localStorage.setItem("isAdmin", admin ? "true" : "false");
     setIsLoggedIn(true); 
     setUserEmail(email || ""); 
     setIsAdmin(Boolean(admin)); 
-    setToken(tok);
     
     // Check privacy acceptance status
     fetch(`${API}/users/me`, {
-      headers: { Authorization: `Bearer ${tok}` },
+      credentials: "include",
     })
       .then(res => res.json())
       .then(user => {
         const hasAcceptedPrivacy = user.privacy_accepted === true;
         setPrivacyAccepted(hasAcceptedPrivacy);
+        setUserFullName(user.full_name || "");
         if (!hasAcceptedPrivacy) {
           setShowPrivacyDialog(true);
         }
@@ -133,33 +123,34 @@ function App() {
 
   const handleLogout = () => {
     // Delete session on backend
-    const currentToken = localStorage.getItem("token");
-    if (currentToken) {
-      fetch(`${API}/api/auth/sessions`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${currentToken}` },
-      })
-      .then(res => res.json())
-      .then(data => {
-        // Try to delete the current session (best effort, don't wait)
-        if (data.sessions && data.sessions.length > 0) {
-          const currentSession = data.sessions[0];
-          fetch(`${API}/api/auth/sessions/${currentSession.id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${currentToken}` },
-          }).catch(() => {}); // Ignore errors on logout
-        }
-      })
-      .catch(() => {}); // Ignore errors
-    }
+    fetch(`${API}/api/auth/sessions`, {
+      method: 'GET',
+      credentials: "include",
+    })
+    .then(res => res.json())
+    .then(data => {
+      // Try to delete the current session (best effort, don't wait)
+      if (data.sessions && data.sessions.length > 0) {
+        const currentSession = data.sessions[0];
+        fetch(`${API}/api/auth/sessions/${currentSession.id}`, {
+          method: 'DELETE',
+          credentials: "include",
+        }).catch(() => {}); // Ignore errors on logout
+      }
+    })
+    .catch(() => {}); // Ignore errors
+
+    fetch(`${API}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
     
-    localStorage.removeItem("token"); 
     localStorage.removeItem("userEmail"); 
     localStorage.removeItem("isAdmin");
     setIsLoggedIn(false); 
     setUserEmail(""); 
     setIsAdmin(false); 
-    setToken("");
+    setUserFullName("");
     window.location.href = "/";
   };
 
@@ -168,31 +159,31 @@ function App() {
 
   return (
     <>
-      <NavBar />
+      <NavBar isLoggedIn={isLoggedIn} userEmail={userEmail} userFullName={userFullName} isAdmin={isAdmin} onLogout={handleLogout} />
       <CookieConsent />
       {showPrivacyDialog && isLoggedIn && !privacyAccepted && (
         <PrivacyConsentDialog 
           userEmail={userEmail} 
-          token={token} 
           onAccepted={handlePrivacyAccepted}
+          onRejected={handleLogout}
         />
       )}
       <div className="app-content">
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage isLoggedIn={isLoggedIn} />} />
           <Route path="/login" element={isLoggedIn ? <Navigate to="/oversikt" replace /> : <Login onLogin={handleLogin} />} />
           <Route path="/register" element={isLoggedIn ? <Navigate to="/oversikt" replace /> : <Register />} />
-          <Route path="/oversikt" element={isLoggedIn ? <Oversikt userEmail={userEmail} isAdmin={isAdmin} onLogout={handleLogout} token={token} /> : <Navigate to="/login" replace />} />
-          <Route path="/home" element={isLoggedIn ? <Home userEmail={userEmail} isAdmin={isAdmin} onLogout={handleLogout} token={token} /> : <Navigate to="/login" replace />} />
-          <Route path="/bookings" element={isLoggedIn ? <Bookings token={token} /> : <PublicBookings />} />
+          <Route path="/oversikt" element={isLoggedIn ? <Oversikt userEmail={userEmail} isAdmin={isAdmin} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+          <Route path="/home" element={isLoggedIn ? <Home userEmail={userEmail} isAdmin={isAdmin} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+          <Route path="/bookings" element={isLoggedIn ? <Bookings isAdmin={isAdmin} /> : <PublicBookings />} />
           <Route path="/om-oss" element={<OmOss />} />
           <Route path="/instruktorer" element={<Instruktorer />} />
           <Route path="/kontakt" element={<Kontakt />} />
           <Route path="/nyheter" element={<Nyheter />} />
           <Route path="/nyheter/:id" element={<NyhetDetail />} />
           <Route path="/personvern" element={<Personvern />} />
-          <Route path="/admin" element={isLoggedIn && isAdmin ? <AdminPanel token={token} /> : <Navigate to="/" replace />} />
-          <Route path="/account" element={isLoggedIn ? <Account token={token} /> : <Navigate to="/login" replace />} />
+          <Route path="/admin" element={isLoggedIn && isAdmin ? <AdminPanel /> : <Navigate to="/" replace />} />
+          <Route path="/account" element={isLoggedIn ? <Account /> : <Navigate to="/login" replace />} />
         </Routes>
       </div>
     </>
