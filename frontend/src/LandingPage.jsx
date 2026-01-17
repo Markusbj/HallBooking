@@ -14,7 +14,9 @@ function normalizeImageUrl(url) {
 }
 
 function logImageError(url, context) {
-  console.error("[image] failed to load", { context, url });
+  if (import.meta.env.DEV) {
+    console.error("[image] failed to load", { context, url });
+  }
 }
 
 export default function LandingPage({ isLoggedIn = false }) {

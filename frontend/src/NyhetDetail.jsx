@@ -21,7 +21,9 @@ function normalizeContentImages(html) {
 }
 
 function logImageError(url, context) {
-  console.error("[image] failed to load", { context, url });
+  if (import.meta.env.DEV) {
+    console.error("[image] failed to load", { context, url });
+  }
 }
 
 export default function NyhetDetail() {
