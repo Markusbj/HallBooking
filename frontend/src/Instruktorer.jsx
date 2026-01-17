@@ -1,6 +1,15 @@
 import React from "react";
 import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+function normalizeImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/")) return `${API}${url}`;
+  return `${API}/${url}`;
+}
+
 export default function Instruktorer() {
   const { content, loading, error } = usePageContent("instruktorer");
   const instructorsListRaw = getContentValue(content, "instructorsList", "");
@@ -89,7 +98,7 @@ export default function Instruktorer() {
                 {instructor.image_url ? (
                   <img
                     className="instructor-photo"
-                    src={instructor.image_url}
+                    src={normalizeImageUrl(instructor.image_url)}
                     alt={instructor.name}
                     loading="lazy"
                   />
