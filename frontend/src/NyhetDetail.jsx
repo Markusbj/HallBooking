@@ -5,9 +5,11 @@ const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 function normalizeImageUrl(url) {
   if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("/")) return `${API}${url}`;
-  return `${API}/${url}`;
+  const trimmed = String(url).trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  if (trimmed.startsWith("/")) return `${API}${trimmed}`;
+  return `${API}/${trimmed}`;
 }
 
 function normalizeContentImages(html) {
@@ -119,13 +121,16 @@ export default function NyhetDetail() {
       </div>
 
       <div className="page-content">
-        {item.image_url && (
+        {normalizeImageUrl(item.image_url) && (
           <div style={{ marginBottom: "30px", borderRadius: "12px", overflow: "hidden" }}>
             <img
               src={normalizeImageUrl(item.image_url)}
               alt={item.title}
               style={{ width: "100%", maxHeight: "500px", objectFit: "cover" }}
-              onError={() => logImageError(normalizeImageUrl(item.image_url), "news.detail")}
+              onError={(e) => {
+                logImageError(normalizeImageUrl(item.image_url), "news.detail");
+                e.currentTarget.style.display = "none";
+              }}
             />
           </div>
         )}
