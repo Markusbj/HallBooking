@@ -3,6 +3,8 @@ import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 export default function Instruktorer() {
   const { content, loading, error } = usePageContent("instruktorer");
+  const instructor1ImageUrl = getContentValue(content, "instructor1ImageUrl", "");
+  const instructor2ImageUrl = getContentValue(content, "instructor2ImageUrl", "");
 
   if (loading) {
     return (
@@ -31,7 +33,8 @@ export default function Instruktorer() {
       experience: "15 år",
       specialties: ["Grunnleggende lydighet", "Spor"],
       description: "Lisbeth har deltat.",
-      image: "👩‍🏫"
+      image: "👩‍🏫",
+      imageUrl: instructor1ImageUrl
     },
     {
       name: "Roy Drotz",
@@ -39,7 +42,8 @@ export default function Instruktorer() {
       experience: "10 år",
       specialties: ["Avansert trening", "Konkurranse", "Privat trening"],
       description: "Roy har stor erfaring med hundetrening og hjelper hundeeiere med både grunnleggende og avansert trening.",
-      image: "👨‍🏫"
+      image: "👨‍🏫",
+      imageUrl: instructor2ImageUrl
     }
   ];
 
@@ -60,7 +64,16 @@ export default function Instruktorer() {
           {instructors.map((instructor, index) => (
             <div key={index} className="instructor-card">
               <div className="instructor-image">
-                <span className="instructor-emoji">{instructor.image}</span>
+                {instructor.imageUrl ? (
+                  <img
+                    className="instructor-photo"
+                    src={instructor.imageUrl}
+                    alt={instructor.name}
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="instructor-emoji">{instructor.image}</span>
+                )}
               </div>
               <div className="instructor-info">
                 <h3>{instructor.name}</h3>

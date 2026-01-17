@@ -35,7 +35,7 @@ Dette systemet gir administratorer mulighet til å redigere innhold på alle sid
 
 ### 3. Legge til nytt innhold
 1. Klikk "Legg til nytt innhold"
-2. Velg side fra dropdown-menyen (Forside, Kontakt oss, Om oss, Instruktører)
+2. Velg side fra dropdown-menyen (Forside, Kontakt oss, Om oss, Instruktører, Kurs & Nyheter, Personvern)
 3. **Seksjonslisten oppdateres automatisk** basert på valgt side
 4. Velg seksjon fra dropdown-menyen med beskrivende navn:
    - **Forside**: Hovedtittel, Undertekst, Tittel for funksjoner, etc.
@@ -53,6 +53,8 @@ Dette systemet gir administratorer mulighet til å redigere innhold på alle sid
 - **kontakt**: Kontakt oss-siden
 - **om-oss**: Om oss-siden
 - **instruktorer**: Instruktører-siden
+- **nyheter**: Kurs & Nyheter-siden
+- **personvern**: Personvern-siden
 
 **Alle sidene kan nå redigeres via CMS-systemet!**
 
@@ -91,6 +93,8 @@ Dette systemet gir administratorer mulighet til å redigere innhold på alle sid
 - `pageSubtitle`: Undertekst på siden
 - `instructorsTitle`: Tittel for instruktører
 - `instructorsDescription`: Beskrivelse av instruktørene
+- `instructor1ImageUrl`: Bilde-URL for første instruktør
+- `instructor2ImageUrl`: Bilde-URL for andre instruktør
 
 #### Om oss Page
 - `pageTitle`: Sidetittel
@@ -102,6 +106,15 @@ Dette systemet gir administratorer mulighet til å redigere innhold på alle sid
 - `historyText`: Historietekst
 - `missionTitle`: Tittel for misjon
 - `missionText`: Misjonstekst
+
+#### Kurs & Nyheter Page
+- `pageTitle`: Sidetittel
+- `pageSubtitle`: Undertekst på siden
+
+#### Personvern Page
+- `pageTitle`: Sidetittel
+- `pageSubtitle`: Undertekst på siden
+- `policyContent`: Personverninnhold (HTML/Markdown)
 
 ## Tekniske detaljer
 

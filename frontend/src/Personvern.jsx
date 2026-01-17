@@ -1,25 +1,26 @@
 import React from 'react';
-import { usePageContent } from './hooks/usePageContent';
+import { usePageContent, getContentValue } from './hooks/usePageContent';
 
 export default function Personvern() {
   const { content, loading } = usePageContent('personvern');
+  const pageTitle = getContentValue(content, "pageTitle", "Personvernserklæring");
+  const pageSubtitle = getContentValue(content, "pageSubtitle", "Informasjon om hvordan vi behandler dine personopplysninger");
+  const policyContent = getContentValue(content, "policyContent", "");
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Personvernserklæring</h1>
-        <p className="page-subtitle">Informasjon om hvordan vi behandler dine personopplysninger</p>
+        <h1>{pageTitle}</h1>
+        <p className="page-subtitle">{pageSubtitle}</p>
       </div>
 
       <div className="page-content">
         {loading ? (
           <div>Laster...</div>
-        ) : content && content.length > 0 ? (
-          content.map((section) => (
-            <div key={section.id} className="content-section">
-              <div dangerouslySetInnerHTML={{ __html: section.content }} />
-            </div>
-          ))
+        ) : policyContent ? (
+          <div className="content-section">
+            <div dangerouslySetInnerHTML={{ __html: policyContent }} />
+          </div>
         ) : (
           <div className="privacy-policy-default">
             <section>

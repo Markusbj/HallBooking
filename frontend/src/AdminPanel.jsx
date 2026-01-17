@@ -582,6 +582,7 @@ function AdminPanel() {
     'cta_text': 'Tekst for "Book nå"',
     'pageTitle': 'Sidetittel',
     'pageSubtitle': 'Undertekst på siden',
+    'policyContent': 'Personverninnhold',
     'contactTitle': 'Tittel for kontaktinformasjon',
     'addressTitle': 'Tittel for adresse',
     'addressText': 'Adresse og beskrivelse',
@@ -598,6 +599,8 @@ function AdminPanel() {
     'locationText': 'Beskrivelse av lokasjon',
     'instructorsTitle': 'Tittel for instruktører',
     'instructorsDescription': 'Beskrivelse av instruktører',
+    'instructor1ImageUrl': 'Instruktør 1 - Bilde URL',
+    'instructor2ImageUrl': 'Instruktør 2 - Bilde URL',
     'historyTitle': 'Tittel for historie',
     'historyText': 'Historietekst',
     'missionTitle': 'Tittel for misjon',
@@ -616,6 +619,7 @@ function AdminPanel() {
     'cta_text': 'Teksten som vises på "Book nå"-knappen',
     'pageTitle': 'Hovedtittelen på siden',
     'pageSubtitle': 'Beskrivende tekst under sidetittelen',
+    'policyContent': 'Selve personverninnholdet (HTML/Markdown støttes)',
     'contactTitle': 'Tittelen for kontaktinformasjon-seksjonen',
     'addressTitle': 'Tittelen for adresse-seksjonen',
     'addressText': 'Adressen og beskrivelse av lokasjonen',
@@ -632,6 +636,8 @@ function AdminPanel() {
     'locationText': 'Beskrivelse av lokasjonen',
     'instructorsTitle': 'Tittelen for instruktører-seksjonen',
     'instructorsDescription': 'Beskrivelse av instruktørene',
+    'instructor1ImageUrl': 'Bilde-URL for første instruktør',
+    'instructor2ImageUrl': 'Bilde-URL for andre instruktør',
     'historyTitle': 'Tittelen for historie-seksjonen',
     'historyText': 'Tekst om historien til organisasjonen',
     'missionTitle': 'Tittelen for misjon-seksjonen',
@@ -642,7 +648,9 @@ function AdminPanel() {
     'landing': 'Forside',
     'kontakt': 'Kontakt oss',
     'instruktorer': 'Instruktører',
-    'om-oss': 'Om oss'
+    'om-oss': 'Om oss',
+    'nyheter': 'Kurs & Nyheter',
+    'personvern': 'Personvern'
   };
 
   // Get sections for a specific page
@@ -680,7 +688,18 @@ function AdminPanel() {
         { value: 'pageTitle', label: 'Sidetittel', description: 'Hovedtittelen på siden' },
         { value: 'pageSubtitle', label: 'Undertekst på siden', description: 'Beskrivende tekst under sidetittelen' },
         { value: 'instructorsTitle', label: 'Tittel for instruktører', description: 'Tittelen for instruktører-seksjonen' },
-        { value: 'instructorsDescription', label: 'Beskrivelse av instruktører', description: 'Beskrivelse av instruktørene' }
+        { value: 'instructorsDescription', label: 'Beskrivelse av instruktører', description: 'Beskrivelse av instruktørene' },
+        { value: 'instructor1ImageUrl', label: 'Instruktør 1 - Bilde URL', description: 'Bilde-URL for første instruktør' },
+        { value: 'instructor2ImageUrl', label: 'Instruktør 2 - Bilde URL', description: 'Bilde-URL for andre instruktør' }
+      ],
+      'nyheter': [
+        { value: 'pageTitle', label: 'Sidetittel', description: 'Hovedtittelen på siden' },
+        { value: 'pageSubtitle', label: 'Undertekst på siden', description: 'Beskrivende tekst under sidetittelen' }
+      ],
+      'personvern': [
+        { value: 'pageTitle', label: 'Sidetittel', description: 'Hovedtittelen på siden' },
+        { value: 'pageSubtitle', label: 'Undertekst på siden', description: 'Beskrivende tekst under sidetittelen' },
+        { value: 'policyContent', label: 'Personverninnhold', description: 'Selve personverninnholdet (HTML/Markdown støttes)' }
       ],
       'om-oss': [
         { value: 'pageTitle', label: 'Sidetittel', description: 'Hovedtittelen på siden' },
@@ -791,6 +810,8 @@ function AdminPanel() {
                     <option value="kontakt">Kontakt oss</option>
                     <option value="om-oss">Om oss</option>
                     <option value="instruktorer">Instruktører</option>
+                    <option value="nyheter">Kurs & Nyheter</option>
+                    <option value="personvern">Personvern</option>
                   </select>
                 </div>
                 <div className="form-group">

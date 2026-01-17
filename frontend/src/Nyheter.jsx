@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { usePageContent, getContentValue } from "./hooks/usePageContent";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -8,6 +9,7 @@ export default function Nyheter() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("alle"); // "alle", "kurs", "seminar", "nyhet"
   const [timeFilter, setTimeFilter] = useState("alle"); // "alle", "kommende", "tidligere"
+  const { content } = usePageContent("nyheter");
 
   useEffect(() => {
     loadItems();
@@ -67,11 +69,14 @@ export default function Nyheter() {
     return icons[type] || "📄";
   };
 
+  const pageTitle = getContentValue(content, "pageTitle", "Kurs, seminarer og nyheter");
+  const pageSubtitle = getContentValue(content, "pageSubtitle", "Se alle våre kurs, seminarer og nyheter");
+
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1>Kurs, seminarer og nyheter</h1>
-        <p className="page-subtitle">Se alle våre kurs, seminarer og nyheter</p>
+        <h1>{pageTitle}</h1>
+        <p className="page-subtitle">{pageSubtitle}</p>
       </div>
 
       <div className="page-content">

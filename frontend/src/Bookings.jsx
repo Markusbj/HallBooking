@@ -469,10 +469,21 @@ export default function Bookings({ token: propToken }) {
           {loading && <div className="loading-state">Henter treningshall...</div>}
           {error && <div className="error-msg">{error}</div>}
 
-          <div className="calendar-grid" onClick={() => onDayHeaderClick(weekStart.toISOString().slice(0, 10))}>
+          <div className="calendar-grid">
             {days.map((day) => (
               <div className="day-card" key={day.date}>
-                <div className="day-header">
+                <div
+                  className="day-header"
+                  onClick={() => onDayHeaderClick(day.date)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onDayHeaderClick(day.date);
+                    }
+                  }}
+                >
                   <div className="day-name">{new Date(day.date).toLocaleDateString(undefined, { weekday: "long" })}</div>
                   <div className="day-date">{new Date(day.date).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</div>
                 </div>

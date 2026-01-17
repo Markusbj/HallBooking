@@ -93,6 +93,34 @@ DEFAULT_CONTENT = [
         "content": "Våre instruktører har alle lang erfaring og er sertifisert innen hundetrening. Vi jobber kontinuerlig med å oppdatere vår kunnskap og følge de nyeste treningsmetodene.",
         "content_type": "text"
     },
+
+    # News page content
+    {
+        "page_name": "nyheter",
+        "section_name": "pageTitle",
+        "content": "Kurs, seminarer og nyheter",
+        "content_type": "text"
+    },
+    {
+        "page_name": "nyheter",
+        "section_name": "pageSubtitle",
+        "content": "Se alle våre kurs, seminarer og nyheter",
+        "content_type": "text"
+    },
+
+    # Privacy page content
+    {
+        "page_name": "personvern",
+        "section_name": "pageTitle",
+        "content": "Personvernserklæring",
+        "content_type": "text"
+    },
+    {
+        "page_name": "personvern",
+        "section_name": "pageSubtitle",
+        "content": "Informasjon om hvordan vi behandler dine personopplysninger",
+        "content_type": "text"
+    },
     
     # About us page content
     {

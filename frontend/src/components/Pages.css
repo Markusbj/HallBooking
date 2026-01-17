@@ -159,6 +159,15 @@
   margin-bottom: 20px;
 }
 
+.instructor-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent-2);
+  box-shadow: var(--shadow);
+}
+
 .instructor-emoji {
   font-size: 4rem;
   display: inline-block;

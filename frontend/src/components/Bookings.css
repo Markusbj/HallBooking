@@ -464,7 +464,7 @@
   grid-template-columns: repeat(7, 1fr);
   gap: 16px;
   margin-bottom: 32px;
-  cursor: pointer;
+  cursor: default;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 16px;
   padding: 16px;
@@ -484,7 +484,7 @@
 }
 
 .calendar-grid::before {
-  content: "Klikk for å se detaljert visning";
+  content: "Klikk på en dag for detaljert visning";
   position: absolute;
   top: -40px;
   left: 50%;
@@ -550,6 +550,7 @@
   color: white;
   padding: 14px 12px;
   text-align: center;
+  cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
