@@ -45,6 +45,10 @@ function inputToWeek(v) {
   // shift to Monday of that ISO week
   return startOfWeek(target);
 }
+function isSlotInPast(dateStr, hour) {
+  const slotDate = new Date(`${dateStr}T${pad(hour)}:00:00`);
+  return slotDate.getTime() < Date.now();
+}
 
 export default function Bookings({ token: propToken }) {
   const token = propToken || localStorage.getItem("token") || "";
@@ -477,20 +481,24 @@ export default function Bookings({ token: propToken }) {
                   {day.slots.map((slot) => {
                     const booked = slot.status === "booked" && slot.booking_ids && slot.booking_ids.length > 0;
                     const blocked = slot.status === "blocked";
+                    const isPast = isSlotInPast(day.date, slot.hour);
                     const isSelected = selected && selected.date === day.date && selected.hour === slot.hour;
+                    const isDisabled = isPast && !booked && !blocked;
                     return (
                       <button
                         key={slot.hour}
-                        className={`time-slot ${booked ? 'booked' : blocked ? 'blocked' : 'available'} ${isSelected ? 'selected' : ''}`}
+                        className={`time-slot ${booked ? 'booked' : blocked ? 'blocked' : isPast ? 'past' : 'available'} ${isSelected ? 'selected' : ''}`}
                         style={blocked ? { 
                           backgroundColor: '#ff4444'
                         } : {}}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (isDisabled) return;
                           onSlotClick(slot, day);
                         }}
+                        disabled={isDisabled}
                         aria-label={`${day.date} ${pad(slot.hour)}:00`}
-                        title={booked ? `${slot.booking_ids.length} opptatt` : blocked ? (slot.reason || "Blokkert") : "Ledig"}
+                        title={booked ? `${slot.booking_ids.length} opptatt` : blocked ? (slot.reason || "Blokkert") : isPast ? "Tidspunkt er i fortid" : "Ledig"}
                       >
                         <span className="time-text">{pad(slot.hour)}:00</span>
                         {booked && (

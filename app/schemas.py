@@ -1,5 +1,5 @@
 from pydantic import BaseModel, model_validator
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from typing import Optional
 from fastapi_users import schemas
 import uuid
@@ -28,6 +28,10 @@ class BookingCreate(BaseModel):
 
         if start is None or end is None:
             raise ValueError("start_time and end_time are required")
+
+        now = datetime.now(start.tzinfo) if start.tzinfo else datetime.now()
+        if start < now:
+            raise ValueError("Kan ikke booke i fortid")
 
         # must be same calendar day
         if start.date() != end.date():
