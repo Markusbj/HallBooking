@@ -3,7 +3,7 @@ from sqlalchemy import select
 from datetime import datetime, timezone
 from . import models, schemas
 
-async def create_booking(db: AsyncSession, booking: schemas.BookingCreate, user_id: int):
+async def create_booking(db: AsyncSession, booking: schemas.BookingCreate, user_id: str):
     db_booking = models.Booking(
         user_id=user_id,
         hall=booking.hall,
@@ -20,7 +20,7 @@ async def get_bookings(db: AsyncSession, skip=0, limit=10):
     return result.scalars().all()
 
 # --- NEW: update user profile helper ---
-async def get_user_by_id(db: AsyncSession, user_id: int):
+async def get_user_by_id(db: AsyncSession, user_id: str):
     """Get user by ID"""
     result = await db.execute(select(models.User).filter(models.User.id == user_id))
     return result.scalar_one_or_none()
@@ -34,6 +34,66 @@ async def get_all_users(db: AsyncSession):
     """Get all users"""
     result = await db.execute(select(models.User))
     return result.scalars().all()
+
+# Booking CRUD operations
+async def get_booking_by_id(db: AsyncSession, booking_id: str):
+    """Get booking by ID"""
+    result = await db.execute(select(models.Booking).filter(models.Booking.id == booking_id))
+    return result.scalar_one_or_none()
+
+async def get_bookings_for_date(db: AsyncSession, target_date: datetime):
+    """Get bookings overlapping a specific date"""
+    start_of_day = datetime.combine(target_date.date(), datetime.min.time())
+    end_of_day = datetime.combine(target_date.date(), datetime.max.time())
+    result = await db.execute(
+        select(models.Booking)
+        .filter(models.Booking.start_time < end_of_day)
+        .filter(models.Booking.end_time > start_of_day)
+    )
+    return result.scalars().all()
+
+async def get_bookings_for_user(db: AsyncSession, user_id: str):
+    """Get bookings for a specific user"""
+    result = await db.execute(
+        select(models.Booking).filter(models.Booking.user_id == user_id)
+    )
+    return result.scalars().all()
+
+async def get_all_bookings(db: AsyncSession):
+    """Get all bookings"""
+    result = await db.execute(select(models.Booking))
+    return result.scalars().all()
+
+async def update_booking(
+    db: AsyncSession,
+    booking_id: str,
+    hall: str | None = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None
+):
+    """Update booking fields"""
+    booking = await get_booking_by_id(db, booking_id)
+    if not booking:
+        return None
+    if hall is not None:
+        booking.hall = hall
+    if start_time is not None:
+        booking.start_time = start_time
+    if end_time is not None:
+        booking.end_time = end_time
+    db.add(booking)
+    await db.commit()
+    await db.refresh(booking)
+    return booking
+
+async def delete_booking(db: AsyncSession, booking_id: str):
+    """Delete booking by ID"""
+    booking = await get_booking_by_id(db, booking_id)
+    if not booking:
+        return None
+    await db.delete(booking)
+    await db.commit()
+    return booking
 
 async def update_user_profile(db: AsyncSession, user_id, data: dict):
     """

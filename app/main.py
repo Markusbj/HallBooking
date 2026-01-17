@@ -445,8 +445,7 @@ async def root():
     logger.info("🏠 Root endpoint accessed")
     return {"msg": "Auth er oppe. Gå til /docs for å teste."}
 
-# In-memory booking store (erstatt med DB senere)
-BOOKINGS: Dict[str, Dict[str, Any]] = {}
+# Booking data is persisted in the database
 
 # Fargekart (bruk disse i frontend)
 CALENDAR_COLORS = {
@@ -485,16 +484,17 @@ def _to_local_naive(dt):
         dt = dt.astimezone(local_tz).replace(tzinfo=None)
     return dt
 
-def _apply_bookings_to_slots(slots: List[Dict[str, Any]]):
-    for booking in BOOKINGS.values():
-        b_start = _to_local_naive(booking["start_time"])
-        b_end = _to_local_naive(booking["end_time"])
+async def _apply_bookings_to_slots(slots: List[Dict[str, Any]], target_date: date_type, db: AsyncSession):
+    bookings = await crud.get_bookings_for_date(db, datetime.combine(target_date, datetime.min.time()))
+    for booking in bookings:
+        b_start = _to_local_naive(booking.start_time)
+        b_end = _to_local_naive(booking.end_time)
         for slot in slots:
             slot_start = _to_local_naive(slot["start_time"])
             slot_end = _to_local_naive(slot["end_time"])
             # overlap-test
             if not (b_end <= slot_start or b_start >= slot_end):
-                slot.setdefault("booking_ids", []).append(booking["id"])
+                slot.setdefault("booking_ids", []).append(booking.id)
                 slot["status"] = "booked"
                 slot["color"] = CALENDAR_COLORS.get("booked", slot.get("color"))
                 
@@ -552,7 +552,7 @@ async def get_bookings_calendar(target_date: str, db: AsyncSession = Depends(dat
     except Exception:
         raise HTTPException(status_code=400, detail="target_date must be YYYY-MM-DD")
     slots = _hour_range_for_date(d)
-    _apply_bookings_to_slots(slots)
+    await _apply_bookings_to_slots(slots, d, db)
     
     # Apply blocked times to slots
     await _apply_blocked_times_to_slots(slots, d, db)
@@ -565,8 +565,6 @@ async def get_bookings_calendar(target_date: str, db: AsyncSession = Depends(dat
 
 @app.post("/bookings")
 async def create_booking(booking: BookingCreate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
-    booking_id = str(uuid.uuid4())
-
     # Normalize incoming datetimes to local naive before storing (prevents shift)
     start_local = _to_local_naive(booking.start_time)
     end_local = _to_local_naive(booking.end_time)
@@ -577,37 +575,36 @@ async def create_booking(booking: BookingCreate, user=Depends(current_active_use
         reason = blocked_info.reason or "Tiden er blokkert"
         raise HTTPException(status_code=400, detail=f"Kan ikke booke: {reason}")
 
-    BOOKINGS[booking_id] = {
-        "id": booking_id,
-        "hall": booking.hall,
-        "start_time": start_local,
-        "end_time": end_local,
-        "created_by": getattr(user, "id", None),
-    }
-    logger.info(f"Created booking {booking_id} by user {getattr(user, 'id', None)}")
-    return {"id": booking_id, "msg": "Booking opprettet"}
+    booking_data = BookingCreate(
+        hall=booking.hall,
+        start_time=start_local,
+        end_time=end_local
+    )
+    db_booking = await crud.create_booking(db, booking_data, str(getattr(user, "id", "")))
+    logger.info(f"Created booking {db_booking.id} by user {getattr(user, 'id', None)}")
+    return {"id": db_booking.id, "msg": "Booking opprettet"}
 
 @app.get("/bookings/{booking_id}")
-async def get_booking(booking_id: str, user=Depends(current_active_user)):
+async def get_booking(booking_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Get a specific booking by ID"""
     _require_admin(user)
-    if booking_id not in BOOKINGS:
+    booking = await crud.get_booking_by_id(db, booking_id)
+    if not booking:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
-    
-    booking = BOOKINGS[booking_id]
     return {
-        "id": booking["id"],
-        "hall": booking.get("hall"),
-        "start_time": booking["start_time"].isoformat() if isinstance(booking["start_time"], datetime) else str(booking["start_time"]),
-        "end_time": booking["end_time"].isoformat() if isinstance(booking["end_time"], datetime) else str(booking["end_time"]),
-        "created_by": booking.get("created_by"),
-        "created_at": booking.get("created_at", booking["start_time"])
+        "id": booking.id,
+        "hall": booking.hall,
+        "start_time": booking.start_time.isoformat() if isinstance(booking.start_time, datetime) else str(booking.start_time),
+        "end_time": booking.end_time.isoformat() if isinstance(booking.end_time, datetime) else str(booking.end_time),
+        "created_by": booking.user_id,
+        "created_at": booking.created_at
     }
 
 @app.put("/bookings/{booking_id}")
-async def update_booking(booking_id: str, payload: BookingCreate, user=Depends(current_active_user)):
+async def update_booking(booking_id: str, payload: BookingCreate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     _require_admin(user)
-    if booking_id not in BOOKINGS:
+    existing = await crud.get_booking_by_id(db, booking_id)
+    if not existing:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
     
     # Normalize incoming datetimes to local naive before storing
@@ -620,11 +617,13 @@ async def update_booking(booking_id: str, payload: BookingCreate, user=Depends(c
         reason = blocked_info.reason or "Tiden er blokkert"
         raise HTTPException(status_code=400, detail=f"Kan ikke oppdatere booking: {reason}")
     
-    BOOKINGS[booking_id].update({
-        "hall": payload.hall,
-        "start_time": start_local,
-        "end_time": end_local,
-    })
+    await crud.update_booking(
+        db,
+        booking_id=booking_id,
+        hall=payload.hall,
+        start_time=start_local,
+        end_time=end_local
+    )
     logger.info(f"Booking {booking_id} oppdatert av admin {getattr(user, 'id', None)}")
     return {"id": booking_id, "msg": "Booking oppdatert"}
 
@@ -637,10 +636,9 @@ class BookingUpdate(BaseModel):
 async def partial_update_booking(booking_id: str, payload: BookingUpdate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Partially update a booking (admin only)"""
     _require_admin(user)
-    if booking_id not in BOOKINGS:
+    booking = await crud.get_booking_by_id(db, booking_id)
+    if not booking:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
-    
-    booking = BOOKINGS[booking_id]
     updates = {}
     
     if payload.hall is not None:
@@ -656,45 +654,51 @@ async def partial_update_booking(booking_id: str, payload: BookingUpdate, user=D
     
     # If we're updating times, check if the new time is blocked
     if payload.start_time is not None or payload.end_time is not None:
-        start_time = updates.get("start_time", booking["start_time"])
-        end_time = updates.get("end_time", booking["end_time"])
+        start_time = updates.get("start_time", booking.start_time)
+        end_time = updates.get("end_time", booking.end_time)
         
         is_blocked, blocked_info = await crud.is_time_blocked(db, start_time, end_time)
         if is_blocked:
             reason = blocked_info.reason or "Tiden er blokkert"
             raise HTTPException(status_code=400, detail=f"Kan ikke oppdatere booking: {reason}")
     
-    booking.update(updates)
+    await crud.update_booking(
+        db,
+        booking_id=booking_id,
+        hall=updates.get("hall"),
+        start_time=updates.get("start_time"),
+        end_time=updates.get("end_time")
+    )
     logger.info(f"Booking {booking_id} delvis oppdatert av admin {getattr(user, 'id', None)}")
     return {"id": booking_id, "msg": "Booking oppdatert"}
 
 @app.delete("/bookings/{booking_id}")
-async def delete_booking(booking_id: str, user=Depends(current_active_user)):
+async def delete_booking(booking_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     _require_admin(user)
-    if booking_id not in BOOKINGS:
+    deleted = await crud.delete_booking(db, booking_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
-    del BOOKINGS[booking_id]
     logger.info(f"Booking {booking_id} slettet av admin {getattr(user, 'id', None)}")
     return {"id": booking_id, "msg": "Booking slettet"}
 
 
 @app.get("/users/me/bookings")
-async def get_my_bookings(user=Depends(current_active_user)):
+async def get_my_bookings(user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """
     Return bookings created by the authenticated user.
     """
     user_id = getattr(user, "id", None)
+    bookings = await crud.get_bookings_for_user(db, str(user_id))
     my = []
-    for b in BOOKINGS.values():
-        if b.get("created_by") == user_id:
-            start = b["start_time"].isoformat() if isinstance(b["start_time"], datetime) else str(b["start_time"])
-            end = b["end_time"].isoformat() if isinstance(b["end_time"], datetime) else str(b["end_time"])
-            my.append({
-                "id": b["id"],
-                "hall": b.get("hall"),
-                "start_time": start,
-                "end_time": end,
-            })
+    for b in bookings:
+        start = b.start_time.isoformat() if isinstance(b.start_time, datetime) else str(b.start_time)
+        end = b.end_time.isoformat() if isinstance(b.end_time, datetime) else str(b.end_time)
+        my.append({
+            "id": b.id,
+            "hall": b.hall,
+            "start_time": start,
+            "end_time": end,
+        })
     return {"bookings": my}
 
 @app.get("/api/admin/bookings")
@@ -705,26 +709,34 @@ async def get_all_bookings(user=Depends(current_active_user), db: AsyncSession =
     _require_admin(user)
     
     all_bookings = []
-    for b in BOOKINGS.values():
+    bookings = await crud.get_all_bookings(db)
+    for b in bookings:
         # Get user information
         user_info = None
-        if b.get("created_by"):
+        if b.user_id:
             try:
-                user_info = await crud.get_user_by_id(db, b["created_by"])
+                user_info = await crud.get_user_by_id(db, b.user_id)
             except:
-                user_info = {"id": b["created_by"], "email": "Ukjent bruker", "name": "Ukjent bruker"}
+                user_info = {"id": b.user_id, "email": "Ukjent bruker", "name": "Ukjent bruker"}
+        if user_info and not isinstance(user_info, dict):
+            user_info = {
+                "id": getattr(user_info, "id", None),
+                "email": getattr(user_info, "email", None),
+                "name": getattr(user_info, "full_name", None),
+                "phone": getattr(user_info, "phone", None)
+            }
         
-        start = b["start_time"].isoformat() if isinstance(b["start_time"], datetime) else str(b["start_time"])
-        end = b["end_time"].isoformat() if isinstance(b["end_time"], datetime) else str(b["end_time"])
+        start = b.start_time.isoformat() if isinstance(b.start_time, datetime) else str(b.start_time)
+        end = b.end_time.isoformat() if isinstance(b.end_time, datetime) else str(b.end_time)
         
         all_bookings.append({
-            "id": b["id"],
-            "hall": b.get("hall"),
+            "id": b.id,
+            "hall": b.hall,
             "start_time": start,
             "end_time": end,
-            "created_by": b.get("created_by"),
+            "created_by": b.user_id,
             "user": user_info,
-            "created_at": b.get("created_at", start)  # Use start_time as fallback
+            "created_at": b.created_at or start  # Use start_time as fallback
         })
     
     # Sort by start_time (newest first)
