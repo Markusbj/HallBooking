@@ -250,12 +250,13 @@ async def token_pkce(
         "token_type": "bearer",
         "expires_in": expires_in
     })
+    cookie_samesite = "none" if ENVIRONMENT == "production" else "lax"
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         secure=ENVIRONMENT == "production",
-        samesite="lax",
+        samesite=cookie_samesite,
         max_age=expires_in
     )
     return response
@@ -263,7 +264,12 @@ async def token_pkce(
 @app.post("/auth/logout", tags=["auth"])
 async def logout_pkce():
     response = JSONResponse({"message": "Logged out"})
-    response.delete_cookie("access_token")
+    cookie_samesite = "none" if ENVIRONMENT == "production" else "lax"
+    response.delete_cookie(
+        "access_token",
+        samesite=cookie_samesite,
+        secure=ENVIRONMENT == "production"
+    )
     return response
 
 # Define custom PATCH /users/me BEFORE including users router
