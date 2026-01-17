@@ -73,6 +73,19 @@ class UserSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)  # When session expires
 
+class AuthorizationCode(Base):
+    __tablename__ = "authorization_codes"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, index=True, nullable=False)  # Reference to User.id
+    code_hash: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    code_challenge: Mapped[str] = mapped_column(String, nullable=False)
+    code_challenge_method: Mapped[str] = mapped_column(String(10), nullable=False, default="S256")
+    redirect_uri: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, default=datetime.now)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
+
 
 
 

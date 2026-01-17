@@ -11,34 +11,67 @@ export default function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  const loginPaths = [
-    "/auth/jwt/login" // Correct FastAPI Users endpoint - must be first!
-  ];
-
-  async function tryLogin(path) {
-    const url = `${API}${path}`;
-    try {
-      // Create form data for FastAPI Users authentication
-      const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
-      
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        // non-OK -> return object indicating failure but include message
-        return { ok: false, status: res.status, message: data.detail || data.message || null };
-      }
-      // success - normalize token property names
-      const token = data.access_token || data.token || data.accessToken || data.access;
-      return { ok: true, data, token };
-    } catch (e) {
-      return { ok: false, error: e };
+  function base64UrlEncode(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
     }
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  async function sha256(plain) {
+    const data = new TextEncoder().encode(plain);
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return base64UrlEncode(hash);
+  }
+
+  function generateCodeVerifier(length = 64) {
+    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+    const random = new Uint8Array(length);
+    crypto.getRandomValues(random);
+    return Array.from(random, (x) => charset[x % charset.length]).join("");
+  }
+
+  async function authorizePkce(codeChallenge) {
+    const url = `${API}/auth/authorize`;
+    const formData = new URLSearchParams();
+    formData.append("username", email);
+    formData.append("password", password);
+    formData.append("code_challenge", codeChallenge);
+    formData.append("code_challenge_method", "S256");
+    formData.append("response_mode", "json");
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, status: res.status, message: data.detail || data.message || null };
+    }
+    return { ok: true, data };
+  }
+
+  async function exchangeToken(code, codeVerifier) {
+    const url = `${API}/auth/token`;
+    const formData = new URLSearchParams();
+    formData.append("grant_type", "authorization_code");
+    formData.append("code", code);
+    formData.append("code_verifier", codeVerifier);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, status: res.status, message: data.detail || data.message || null };
+    }
+    const token = data.access_token || data.token || data.accessToken || data.access;
+    return { ok: true, data, token };
   }
 
   async function handleSubmit(e) {
@@ -47,66 +80,65 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      let result;
-      for (const p of loginPaths) {
-        result = await tryLogin(p);
-        if (result.ok) {
-          const token = result.token;
-          if (!token) {
-            // some backends return user object on login endpoint expecting form data; skip
-            continue;
-          }
-          localStorage.setItem("token", token);
-          
-          // Fetch user info after successful login
-          try {
-            const userRes = await fetch(`${API}/users/me`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (userRes.ok) {
-              const userData = await userRes.json();
-              
-              // Register session on backend ONLY if user has accepted cookies
-              // Session tracking requires consent under GDPR
-              const cookieConsent = localStorage.getItem('cookieConsent');
-              if (cookieConsent === 'accepted') {
-                try {
-                  await fetch(`${API}/api/auth/register-session`, {
-                    method: 'POST',
-                    headers: { 
-                      Authorization: `Bearer ${token}`,
-                      'Content-Type': 'application/json'
-                    },
-                  });
-                } catch (err) {
-                  // Don't fail login if session registration fails
-                  console.warn('Failed to register session:', err);
-                }
-              }
-              
-              if (onLogin) {
-                onLogin(userData.email, userData.is_superuser, token);
-              }
-            } else {
-              // Fallback if user info fetch fails
-              if (onLogin) onLogin(email, false, token);
-            }
-          } catch (err) {
-            // Fallback if user info fetch fails
-            if (onLogin) onLogin(email, false, token);
-          }
-          
-          navigate("/home", { replace: true });
-          return;
-        }
-        // if 404 or 405, try next; if other error with message, capture for feedback
+      const codeVerifier = generateCodeVerifier();
+      const codeChallenge = await sha256(codeVerifier);
+      const authResult = await authorizePkce(codeChallenge);
+      if (!authResult.ok) {
+        const msg = authResult.message || "Innlogging mislyktes. Sjekk at e-post og passord er riktig.";
+        setError(msg);
+        return;
       }
 
-      // If we get here, no path succeeded
-      const msg = result && (result.message || (result.error && result.error.message)) 
-        ? (result.message || result.error.message) 
-        : "Innlogging mislyktes. Sjekk at e-post og passord er riktig.";
-      setError(msg);
+      const tokenResult = await exchangeToken(authResult.data.code, codeVerifier);
+      if (!tokenResult.ok || !tokenResult.token) {
+        const msg = tokenResult.message || "Kunne ikke hente token etter innlogging.";
+        setError(msg);
+        return;
+      }
+
+      const token = tokenResult.token;
+      localStorage.setItem("token", token);
+
+      // Fetch user info after successful login
+      try {
+        const userRes = await fetch(`${API}/users/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (userRes.ok) {
+          const userData = await userRes.json();
+
+          // Register session on backend ONLY if user has accepted cookies
+          // Session tracking requires consent under GDPR
+          const cookieConsent = localStorage.getItem('cookieConsent');
+          if (cookieConsent === 'accepted') {
+            try {
+              await fetch(`${API}/api/auth/register-session`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+              });
+            } catch (err) {
+              // Don't fail login if session registration fails
+              console.warn('Failed to register session:', err);
+            }
+          }
+
+          if (onLogin) {
+            onLogin(userData.email, userData.is_superuser, token);
+          }
+        } else {
+          // Fallback if user info fetch fails
+          if (onLogin) onLogin(email, false, token);
+        }
+      } catch (err) {
+        // Fallback if user info fetch fails
+        if (onLogin) onLogin(email, false, token);
+      }
+
+      navigate("/home", { replace: true });
+      return;
     } finally {
       setLoading(false);
     }

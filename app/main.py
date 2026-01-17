@@ -1,12 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from contextlib import asynccontextmanager
 from . import models, schemas, crud, database
 from .database import Base, engine, get_db
 from .models import User
 from .schemas import UserRead, UserCreate, UserUpdate, BookingCreate, NewsItemCreate, NewsItemUpdate, NewsItemRead
-from .auth import fastapi_users, auth_backend, current_active_user, create_db_and_tables
+from .auth import fastapi_users, auth_backend, current_active_user, create_db_and_tables, get_user_manager, get_jwt_strategy
 from datetime import datetime, timedelta, date as date_type, timezone
 from typing import List, Dict, Any
 from pydantic import BaseModel
@@ -26,6 +28,8 @@ from pathlib import Path
 import secrets
 import string
 from passlib.context import CryptContext
+import base64
+import hashlib
 
 # Sett opp logging
 logging.basicConfig(
@@ -127,6 +131,113 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
+
+# PKCE helpers for authorization code flow
+def _base64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+def _verify_pkce(code_verifier: str, code_challenge: str, method: str) -> bool:
+    if method == "S256":
+        digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+        expected = _base64url_encode(digest)
+        return secrets.compare_digest(expected, code_challenge)
+    if method == "plain":
+        return secrets.compare_digest(code_verifier, code_challenge)
+    return False
+
+@app.post("/auth/authorize", tags=["auth"])
+async def authorize_pkce(
+    username: str = Form(...),
+    password: str = Form(...),
+    code_challenge: str = Form(...),
+    code_challenge_method: str = Form("S256"),
+    redirect_uri: str | None = Form(None),
+    state: str | None = Form(None),
+    response_mode: str = Form("json"),
+    user_manager=Depends(get_user_manager),
+    db: AsyncSession = Depends(database.get_db)
+):
+    """
+    Authorization endpoint for PKCE flow. Returns JSON by default,
+    or redirects when response_mode=redirect and redirect_uri is provided.
+    """
+    if code_challenge_method not in {"S256", "plain"}:
+        raise HTTPException(status_code=400, detail="Unsupported code_challenge_method")
+
+    credentials = OAuth2PasswordRequestForm(
+        username=username,
+        password=password,
+        scope="",
+        client_id=None,
+        client_secret=None,
+        grant_type="password"
+    )
+    user = await user_manager.authenticate(credentials)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    code = secrets.token_urlsafe(32)
+    code_hash = hashlib.sha256(code.encode("ascii")).hexdigest()
+
+    await crud.create_authorization_code(
+        db=db,
+        user_id=str(user.id),
+        code_hash=code_hash,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+        redirect_uri=redirect_uri
+    )
+
+    payload = {"code": code, "state": state}
+    if response_mode == "redirect" and redirect_uri:
+        params = [f"code={code}"]
+        if state:
+            params.append(f"state={state}")
+        return RedirectResponse(f"{redirect_uri}?{'&'.join(params)}", status_code=302)
+    return payload
+
+@app.post("/auth/token", tags=["auth"])
+async def token_pkce(
+    grant_type: str = Form(...),
+    code: str = Form(...),
+    code_verifier: str = Form(...),
+    redirect_uri: str | None = Form(None),
+    db: AsyncSession = Depends(database.get_db)
+):
+    """
+    Token endpoint for PKCE flow. Exchanges authorization code + verifier for JWT.
+    """
+    if grant_type != "authorization_code":
+        raise HTTPException(status_code=400, detail="Unsupported grant_type")
+
+    code_hash = hashlib.sha256(code.encode("ascii")).hexdigest()
+    auth_code = await crud.get_authorization_code(db, code_hash)
+    if not auth_code:
+        raise HTTPException(status_code=400, detail="Invalid or expired code")
+    if auth_code.used_at is not None or auth_code.expires_at <= datetime.now():
+        raise HTTPException(status_code=400, detail="Invalid or expired code")
+    if auth_code.redirect_uri and not redirect_uri:
+        raise HTTPException(status_code=400, detail="redirect_uri is required")
+    if auth_code.redirect_uri and redirect_uri and auth_code.redirect_uri != redirect_uri:
+        raise HTTPException(status_code=400, detail="redirect_uri mismatch")
+    if not _verify_pkce(code_verifier, auth_code.code_challenge, auth_code.code_challenge_method):
+        raise HTTPException(status_code=400, detail="Invalid code_verifier")
+
+    user = await crud.get_user_by_uuid(db, auth_code.user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+
+    await crud.mark_authorization_code_used(db, auth_code)
+
+    jwt_strategy = get_jwt_strategy()
+    access_token = await jwt_strategy.write_token(user)
+    expires_in = 60 * 25
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": expires_in
+    }
 
 # Define custom PATCH /users/me BEFORE including users router
 # This prevents FastAPI Users' default handler from being used

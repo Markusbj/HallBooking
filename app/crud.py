@@ -25,6 +25,11 @@ async def get_user_by_id(db: AsyncSession, user_id: int):
     result = await db.execute(select(models.User).filter(models.User.id == user_id))
     return result.scalar_one_or_none()
 
+async def get_user_by_uuid(db: AsyncSession, user_id: str):
+    """Get user by UUID string"""
+    result = await db.execute(select(models.User).filter(models.User.id == user_id))
+    return result.scalar_one_or_none()
+
 async def get_all_users(db: AsyncSession):
     """Get all users"""
     result = await db.execute(select(models.User))
@@ -380,3 +385,45 @@ async def enforce_session_limit(db: AsyncSession, user_id: str, max_sessions: in
         await db.commit()
         return len(sessions_to_delete)
     return 0
+
+# Authorization Code (PKCE) CRUD operations
+async def create_authorization_code(
+    db: AsyncSession,
+    user_id: str,
+    code_hash: str,
+    code_challenge: str,
+    code_challenge_method: str,
+    redirect_uri: str | None,
+    expires_in_minutes: int = 5
+):
+    """Create a new authorization code record"""
+    from datetime import timedelta
+
+    expires_at = datetime.now() + timedelta(minutes=expires_in_minutes)
+    db_code = models.AuthorizationCode(
+        user_id=user_id,
+        code_hash=code_hash,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+        redirect_uri=redirect_uri,
+        expires_at=expires_at
+    )
+    db.add(db_code)
+    await db.commit()
+    await db.refresh(db_code)
+    return db_code
+
+async def get_authorization_code(db: AsyncSession, code_hash: str):
+    """Get an authorization code by hash"""
+    result = await db.execute(
+        select(models.AuthorizationCode).filter(models.AuthorizationCode.code_hash == code_hash)
+    )
+    return result.scalar_one_or_none()
+
+async def mark_authorization_code_used(db: AsyncSession, auth_code: models.AuthorizationCode):
+    """Mark an authorization code as used"""
+    auth_code.used_at = datetime.now()
+    db.add(auth_code)
+    await db.commit()
+    await db.refresh(auth_code)
+    return auth_code
