@@ -11,6 +11,10 @@ function normalizeImageUrl(url) {
   return `${API}/${url}`;
 }
 
+function logImageError(url, context) {
+  console.error("[image] failed to load", { context, url });
+}
+
 export default function LandingPage() {
   const isLoggedIn = !!localStorage.getItem("token");
   const { content, loading, error } = usePageContent("landing");
@@ -112,6 +116,7 @@ export default function LandingPage() {
                         src={normalizeImageUrl(item.image_url)}
                         alt={item.title}
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={() => logImageError(normalizeImageUrl(item.image_url), "landing.featured")}
                       />
                     </div>
                   )}

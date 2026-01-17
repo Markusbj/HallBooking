@@ -10,6 +10,10 @@ function normalizeImageUrl(url) {
   return `${API}/${url}`;
 }
 
+function logImageError(url, context) {
+  console.error("[image] failed to load", { context, url });
+}
+
 export default function Instruktorer() {
   const { content, loading, error } = usePageContent("instruktorer");
   const instructorsListRaw = getContentValue(content, "instructorsList", "");
@@ -101,6 +105,7 @@ export default function Instruktorer() {
                     src={normalizeImageUrl(instructor.image_url)}
                     alt={instructor.name}
                     loading="lazy"
+                    onError={() => logImageError(normalizeImageUrl(instructor.image_url), "instructors")}
                   />
                 ) : (
                   <span className="instructor-emoji">{instructor.image}</span>

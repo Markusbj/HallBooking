@@ -18,6 +18,10 @@ function normalizeContentImages(html) {
   });
 }
 
+function logImageError(url, context) {
+  console.error("[image] failed to load", { context, url });
+}
+
 export default function NyhetDetail() {
   const { id } = useParams();
   const [item, setItem] = useState(null);
@@ -121,6 +125,7 @@ export default function NyhetDetail() {
               src={normalizeImageUrl(item.image_url)}
               alt={item.title}
               style={{ width: "100%", maxHeight: "500px", objectFit: "cover" }}
+              onError={() => logImageError(normalizeImageUrl(item.image_url), "news.detail")}
             />
           </div>
         )}

@@ -11,6 +11,10 @@ function normalizeImageUrl(url) {
   return `${API}/${url}`;
 }
 
+function logImageError(url, context) {
+  console.error("[image] failed to load", { context, url });
+}
+
 export default function Nyheter() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,6 +155,7 @@ export default function Nyheter() {
                       src={normalizeImageUrl(item.image_url)}
                       alt={item.title}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={() => logImageError(normalizeImageUrl(item.image_url), "news.list")}
                     />
                   </div>
                 )}
