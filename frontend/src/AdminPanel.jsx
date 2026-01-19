@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from "./api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-const fetchWithCredentials = (url, options = {}) =>
-  window.fetch(url, { ...options, credentials: "include" });
-const fetch = fetchWithCredentials;
+const fetch = apiFetch;
 
 function AdminPanel() {
   const [activeTab, setActiveTab] = useState('content');

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiFetch } from "./api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -18,9 +19,7 @@ export default function Home(props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/users/me/bookings`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(`${API}/users/me/bookings`);
       if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
       const data = await res.json();
       setMyBookings(data.bookings || []);

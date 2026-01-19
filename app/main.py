@@ -250,25 +250,34 @@ async def token_pkce(
         "token_type": "bearer",
         "expires_in": expires_in
     })
+    # NOTE: SameSite=Lax requires API to be on same-site domain (e.g. api.tgtromso.no).
+    # Since we are currently cross-site, use SameSite=None to allow cookies in all browsers.
     cookie_samesite = "none" if ENVIRONMENT == "production" else "lax"
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=ENVIRONMENT == "production",
-        samesite=cookie_samesite,
-        max_age=expires_in
-    )
+    cookie_domain = os.getenv("COOKIE_DOMAIN")
+    cookie_kwargs = {
+        "key": "access_token",
+        "value": access_token,
+        "httponly": True,
+        "secure": ENVIRONMENT == "production",
+        "samesite": cookie_samesite,
+        "max_age": expires_in
+    }
+    if cookie_domain:
+        cookie_kwargs["domain"] = cookie_domain
+    response.set_cookie(**cookie_kwargs)
     return response
 
 @app.post("/auth/logout", tags=["auth"])
 async def logout_pkce():
     response = JSONResponse({"message": "Logged out"})
+    # NOTE: SameSite=Lax requires same-site API domain.
     cookie_samesite = "none" if ENVIRONMENT == "production" else "lax"
+    cookie_domain = os.getenv("COOKIE_DOMAIN")
     response.delete_cookie(
         "access_token",
         samesite=cookie_samesite,
-        secure=ENVIRONMENT == "production"
+        secure=ENVIRONMENT == "production",
+        domain=cookie_domain
     )
     return response
 

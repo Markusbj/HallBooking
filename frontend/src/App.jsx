@@ -25,6 +25,7 @@ import "./components/Bookings.css";
 import "./components/LandingPage.css";
 import "./components/Pages.css";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
+import { apiFetch, setAccessToken, clearAccessToken } from "./api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -39,9 +40,7 @@ function App() {
 
   useEffect(() => {
     // Verifiser innloggingsstatus via cookie
-    fetch(`${API}/users/me`, {
-      credentials: "include",
-    })
+    apiFetch(`${API}/users/me`)
       .then((res) => {
         if (!res.ok) throw new Error("invalid token");
         return res.json();
@@ -66,9 +65,8 @@ function App() {
         const cookieConsent = localStorage.getItem('cookieConsent');
         if (cookieConsent === 'accepted') {
           try {
-            await fetch(`${API}/api/auth/update-session`, {
-              method: 'POST',
-              credentials: "include",
+            await apiFetch(`${API}/api/auth/update-session`, {
+              method: 'POST'
             });
           } catch (err) {
             // Don't fail if session update fails, just log it
@@ -93,12 +91,10 @@ function App() {
     setUserEmail(email || ""); 
     setIsAdmin(Boolean(admin)); 
     setToken(accessToken || "");
+    setAccessToken(accessToken || "");
     
     // Check privacy acceptance status
-    fetch(`${API}/users/me`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      credentials: "include",
-    })
+    apiFetch(`${API}/users/me`)
       .then(res => res.json())
       .then(user => {
         const hasAcceptedPrivacy = user.privacy_accepted === true;
@@ -126,26 +122,23 @@ function App() {
 
   const handleLogout = () => {
     // Delete session on backend
-    fetch(`${API}/api/auth/sessions`, {
-      method: 'GET',
-      credentials: "include",
+    apiFetch(`${API}/api/auth/sessions`, {
+      method: 'GET'
     })
     .then(res => res.json())
     .then(data => {
       // Try to delete the current session (best effort, don't wait)
       if (data.sessions && data.sessions.length > 0) {
         const currentSession = data.sessions[0];
-        fetch(`${API}/api/auth/sessions/${currentSession.id}`, {
-          method: 'DELETE',
-          credentials: "include",
+        apiFetch(`${API}/api/auth/sessions/${currentSession.id}`, {
+          method: 'DELETE'
         }).catch(() => {}); // Ignore errors on logout
       }
     })
     .catch(() => {}); // Ignore errors
 
-    fetch(`${API}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
+    apiFetch(`${API}/auth/logout`, {
+      method: "POST"
     }).catch(() => {});
     
     localStorage.removeItem("userEmail"); 
@@ -155,6 +148,7 @@ function App() {
     setIsAdmin(false); 
     setUserFullName("");
     setToken("");
+    clearAccessToken();
     window.location.href = "/";
   };
 

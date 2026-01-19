@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch, setAccessToken } from "./api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -97,28 +98,25 @@ export default function Login({ onLogin }) {
         setError(msg);
         return;
       }
-
+      const token = tokenResult.token;
+      setAccessToken(token);
 
       // Fetch user info after successful login
       try {
-        const userRes = await fetch(`${API}/users/me`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          credentials: "include",
-        });
+        const userRes = await apiFetch(`${API}/users/me`);
         if (userRes.ok) {
           const userData = await userRes.json();
 
           // Register session on backend ONLY if user has accepted cookies
           // Session tracking requires consent under GDPR
-              const cookieConsent = localStorage.getItem('cookieConsent');
+          const cookieConsent = localStorage.getItem('cookieConsent');
           if (cookieConsent === 'accepted') {
             try {
-              await fetch(`${API}/api/auth/register-session`, {
+              await apiFetch(`${API}/api/auth/register-session`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
-                },
-                    credentials: "include",
+                }
               });
             } catch (err) {
               // Don't fail login if session registration fails
@@ -126,16 +124,16 @@ export default function Login({ onLogin }) {
             }
           }
 
-              if (onLogin) {
-                onLogin(userData.email, userData.is_superuser, token);
-              }
+          if (onLogin) {
+            onLogin(userData.email, userData.is_superuser, token);
+          }
         } else {
           // Fallback if user info fetch fails
-              if (onLogin) onLogin(email, false, token);
+          if (onLogin) onLogin(email, false, token);
         }
       } catch (err) {
         // Fallback if user info fetch fails
-            if (onLogin) onLogin(email, false, token);
+        if (onLogin) onLogin(email, false, token);
       }
 
       navigate("/home", { replace: true });

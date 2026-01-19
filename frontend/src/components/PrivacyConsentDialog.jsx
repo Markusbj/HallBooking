@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './PrivacyConsentDialog.css';
+import { apiFetch } from "../api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -13,7 +14,7 @@ export default function PrivacyConsentDialog({ userEmail, token, onAccepted, onR
     setError(null);
 
     try {
-      const response = await fetch(`${API}/users/me`, {
+      const response = await apiFetch(`${API}/users/me`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -22,8 +23,7 @@ export default function PrivacyConsentDialog({ userEmail, token, onAccepted, onR
         body: JSON.stringify({
           privacy_accepted: true,
           privacy_accepted_date: new Date().toISOString()
-        }),
-        credentials: "include"
+        })
       });
 
       if (!response.ok) {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "./api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -28,9 +29,7 @@ export default function Account() {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`${API}/users/me`, { 
-          credentials: "include"
-        });
+        const res = await apiFetch(`${API}/users/me`);
         if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
         const data = await res.json();
         setProfile({ 
@@ -55,7 +54,7 @@ export default function Account() {
     setError(null);
     setSuccess(false);
     try {
-      const res = await fetch(`${API}/users/me`, {
+      const res = await apiFetch(`${API}/users/me`, {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json"
@@ -63,8 +62,7 @@ export default function Account() {
         body: JSON.stringify({ 
           full_name: profile.full_name, 
           phone: profile.phone 
-        }),
-        credentials: "include",
+        })
       });
       if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
       const data = await res.json();
@@ -103,7 +101,7 @@ export default function Account() {
 
     setChangingPassword(true);
     try {
-      const res = await fetch(`${API}/users/me/change-password`, {
+      const res = await apiFetch(`${API}/users/me/change-password`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json"
@@ -111,8 +109,7 @@ export default function Account() {
         body: JSON.stringify({
           current_password: passwordForm.current_password,
           new_password: passwordForm.new_password
-        }),
-        credentials: "include",
+        })
       });
       
       if (!res.ok) {

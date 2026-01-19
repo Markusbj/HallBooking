@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './CookieConsent.css';
+import { apiFetch } from "../api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -35,7 +36,7 @@ export default function CookieConsent() {
     // since session tracking requires cookie/localStorage consent
     let isLoggedIn = false;
     try {
-      const res = await fetch(`${API}/users/me`, { credentials: "include" });
+      const res = await apiFetch(`${API}/users/me`);
       isLoggedIn = res.ok;
     } catch {
       isLoggedIn = false;
@@ -47,9 +48,8 @@ export default function CookieConsent() {
         'Du kan fortsatt bruke tjenesten uten å være innlogget. Vil du fortsette med utlogging?'
       )) {
         // Clear server-side auth cookie
-        await fetch(`${API}/auth/logout`, {
-          method: 'POST',
-          credentials: "include"
+        await apiFetch(`${API}/auth/logout`, {
+          method: 'POST'
         }).catch(() => {});
         // Reload page to reflect logout state
         window.location.href = '/';

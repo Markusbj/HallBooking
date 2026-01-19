@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { apiFetch } from "./api";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -87,9 +88,7 @@ export default function Bookings({ isAdmin }) {
   // No need for scroll logic since current week is now first in the list
 
   async function fetchDay(dateStr) {
-    const res = await fetch(`${API}/bookings/${dateStr}`, {
-      credentials: "include",
-    });
+    const res = await apiFetch(`${API}/bookings/${dateStr}`);
     if (!res.ok) throw new Error(`Kunne ikke hente ${dateStr}`);
     return res.json();
   }
@@ -203,11 +202,10 @@ export default function Bookings({ isAdmin }) {
     const endDate = new Date(start); endDate.setHours(endDate.getHours() + 1);
     const body = { hall: hall || "Hovedsal", start_time: start, end_time: endDate.toISOString() };
     try {
-      const res = await fetch(`${API}/bookings`, {
+      const res = await apiFetch(`${API}/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        credentials: "include",
       });
       if (!res.ok) {
         let data = null; try { data = await res.json(); } catch {}
@@ -223,9 +221,8 @@ export default function Bookings({ isAdmin }) {
     if (!isAdmin) { setError("Kun admin kan slette bookings"); return; }
     if (!confirm("Slett denne bookingen?")) return;
     try {
-      const res = await fetch(`${API}/bookings/${bookingId}`, {
+      const res = await apiFetch(`${API}/bookings/${bookingId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Sletting feilet");
       await fetchWeek(); setSelected(null);
