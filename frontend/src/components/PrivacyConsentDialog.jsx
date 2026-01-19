@@ -4,7 +4,7 @@ import './PrivacyConsentDialog.css';
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function PrivacyConsentDialog({ userEmail, onAccepted, onRejected }) {
+export default function PrivacyConsentDialog({ userEmail, token, onAccepted, onRejected }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -16,7 +16,8 @@ export default function PrivacyConsentDialog({ userEmail, onAccepted, onRejected
       const response = await fetch(`${API}/users/me`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           privacy_accepted: true,

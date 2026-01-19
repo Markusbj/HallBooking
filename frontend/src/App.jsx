@@ -33,6 +33,7 @@ function App() {
   const [userEmail, setUserEmail] = useState("");
   const [userFullName, setUserFullName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [token, setToken] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(true); // Default to true to avoid showing dialog if not logged in
   const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
 
@@ -81,7 +82,7 @@ function App() {
       });
   }, []);
 
-  const handleLogin = (email, admin) => {
+  const handleLogin = (email, admin, accessToken) => {
     // GDPR: Authentication tokens are considered "strictly necessary" cookies
     // under GDPR Article 5(3) ePrivacy Directive, but we still need to:
     // 1. Inform users about what we store
@@ -91,9 +92,11 @@ function App() {
     setIsLoggedIn(true); 
     setUserEmail(email || ""); 
     setIsAdmin(Boolean(admin)); 
+    setToken(accessToken || "");
     
     // Check privacy acceptance status
     fetch(`${API}/users/me`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       credentials: "include",
     })
       .then(res => res.json())
@@ -151,6 +154,7 @@ function App() {
     setUserEmail(""); 
     setIsAdmin(false); 
     setUserFullName("");
+    setToken("");
     window.location.href = "/";
   };
 
@@ -164,6 +168,7 @@ function App() {
       {showPrivacyDialog && isLoggedIn && !privacyAccepted && (
         <PrivacyConsentDialog 
           userEmail={userEmail} 
+          token={token}
           onAccepted={handlePrivacyAccepted}
           onRejected={handleLogout}
         />

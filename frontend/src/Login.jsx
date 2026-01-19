@@ -102,6 +102,7 @@ export default function Login({ onLogin }) {
       // Fetch user info after successful login
       try {
         const userRes = await fetch(`${API}/users/me`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: "include",
         });
         if (userRes.ok) {
@@ -126,15 +127,15 @@ export default function Login({ onLogin }) {
           }
 
               if (onLogin) {
-                onLogin(userData.email, userData.is_superuser);
+                onLogin(userData.email, userData.is_superuser, token);
               }
         } else {
           // Fallback if user info fetch fails
-              if (onLogin) onLogin(email, false);
+              if (onLogin) onLogin(email, false, token);
         }
       } catch (err) {
         // Fallback if user info fetch fails
-            if (onLogin) onLogin(email, false);
+            if (onLogin) onLogin(email, false, token);
       }
 
       navigate("/home", { replace: true });
