@@ -25,7 +25,11 @@ from pathlib import Path
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import httpx
+try:
+    import httpx
+    HAS_HTTPX = True
+except ImportError:
+    HAS_HTTPX = False
 import shutil
 from pathlib import Path
 import secrets
@@ -998,7 +1002,7 @@ Ikke svar på denne e-posten.
     
     # Try Resend API first (works on Railway free tier)
     resend_api_key = os.getenv("RESEND_API_KEY", "")
-    if resend_api_key:
+    if resend_api_key and HAS_HTTPX:
         try:
             sender_email = os.getenv("RESEND_FROM_EMAIL", os.getenv("SMTP_USER", "noreply@tgtromso.no"))
             
@@ -1316,7 +1320,7 @@ async def send_contact_form_email(
     
     # Try Resend API first (works on Railway free tier)
     resend_api_key = os.getenv("RESEND_API_KEY", "")
-    if resend_api_key:
+    if resend_api_key and HAS_HTTPX:
         try:
             email_body = f"""
 Ny henvendelse fra kontaktskjemaet:

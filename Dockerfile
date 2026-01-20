@@ -17,7 +17,8 @@ COPY Pipfile Pipfile.lock ./
 
 # Installer pipenv og dependencies
 RUN pip install pipenv && \
-    pipenv install --system
+    pipenv install --system || \
+    (pipenv install --skip-lock --system && pip install httpx)
 
 # Kopier resten av applikasjonen
 COPY . .
