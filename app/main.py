@@ -67,14 +67,21 @@ allowed_origins_str = os.getenv(
 )
 # Split og strippe whitespace, fjern tomme strings
 ALLOWED_ORIGINS: List[str] = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+
+# Alltid inkluder produksjons-domener hvis de ikke allerede er der
+production_domains = ["https://www.tgtromso.no", "https://tgtromso.no"]
+for domain in production_domains:
+    if domain not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(domain)
+
 ENVIRONMENT = os.getenv("ENVIRONMENT", "")
 
 # Log CORS config for debugging
 logger.info(f"🔒 CORS Config: ENVIRONMENT={ENVIRONMENT}, ALLOWED_ORIGINS={ALLOWED_ORIGINS}")
 
-# Hvis vi er i produksjon og har spesifikke origins, bruk dem
-# Ellers bruk regex for utvikling
-if ENVIRONMENT == "production" and len(ALLOWED_ORIGINS) > 0:
+# Bruk alltid eksplisitte origins i produksjon for bedre sikkerhet
+# I utvikling kan vi bruke regex for fleksibilitet
+if ENVIRONMENT == "production":
     app.add_middleware(
         CORSMiddleware,
         allow_origins=ALLOWED_ORIGINS,
@@ -83,7 +90,7 @@ if ENVIRONMENT == "production" and len(ALLOWED_ORIGINS) > 0:
         allow_headers=["*"],
     )
 else:
-    # Utvikling: tillat localhost med regex
+    # Utvikling: tillat localhost med regex + produksjons-domener
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https?://(www\.)?tgtromso\.no$",
@@ -1263,7 +1270,7 @@ class ContactForm(BaseModel):
 async def submit_contact_form(contact: ContactForm):
     """
     Handle contact form submissions (kurs, seminar, trening, atferdsproblemer, etc.)
-    For now, this logs the message. In production, you would send an email here.
+    Sends email to configured recipient.
     """
     logger.info(f"📧 Contact form submission received:")
     logger.info(f"   Name: {contact.name}")
@@ -1273,6 +1280,9 @@ async def submit_contact_form(contact: ContactForm):
     logger.info(f"   Message: {contact.message}")
     
     # Send email to configured recipient (default from environment variable)
+    email_sent = False
+    email_error = None
+    
     try:
         recipient_email = os.getenv("CONTACT_RECIPIENT_EMAIL", "tgnrk@gmail.com")
         
@@ -1301,34 +1311,47 @@ Dette er en automatisk melding fra TG Tromsø kontaktskjema.
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         # Send email using SMTP (Gmail)
-        # Note: For production, you should use environment variables for credentials
         smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         smtp_user = os.getenv("SMTP_USER", "")
         smtp_password = os.getenv("SMTP_PASSWORD", "")
         
-        if smtp_user and smtp_password:
+        if not smtp_user or not smtp_password:
+            email_error = "SMTP credentials not configured. Set SMTP_USER and SMTP_PASSWORD environment variables."
+            logger.warning(f"⚠️ {email_error}")
+        else:
             try:
                 server = smtplib.SMTP(smtp_server, smtp_port)
                 server.starttls()
                 server.login(smtp_user, smtp_password)
                 text = msg.as_string()
-                server.sendmail(contact.email, recipient_email, text)
+                server.sendmail(smtp_user, recipient_email, text)
                 server.quit()
+                email_sent = True
                 logger.info(f"✅ Email sent successfully to {recipient_email}")
+            except smtplib.SMTPAuthenticationError as e:
+                email_error = f"SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD. Error: {str(e)}"
+                logger.error(f"❌ {email_error}")
+            except smtplib.SMTPException as e:
+                email_error = f"SMTP error: {str(e)}"
+                logger.error(f"❌ {email_error}")
             except Exception as e:
-                logger.error(f"❌ Error sending email: {e}")
-                # Don't fail the request if email fails, just log it
-        else:
-            logger.warning("⚠️ SMTP credentials not configured. Email not sent. Set SMTP_USER and SMTP_PASSWORD environment variables.")
+                email_error = f"Error sending email: {str(e)}"
+                logger.error(f"❌ {email_error}")
         
     except Exception as e:
-        logger.error(f"❌ Error processing email: {e}")
-        # Don't fail the request if email fails
+        email_error = f"Error processing email: {str(e)}"
+        logger.error(f"❌ {email_error}")
+    
+    # Return success even if email fails (to not expose SMTP details to users)
+    # But log the error for debugging
+    if email_error:
+        logger.warning(f"⚠️ Contact form submitted but email failed: {email_error}")
     
     return {
         "message": "Takk for din henvendelse! Vi kommer tilbake til deg snart.",
-        "success": True
+        "success": True,
+        "email_sent": email_sent
     }
 
 # News Items API endpoints

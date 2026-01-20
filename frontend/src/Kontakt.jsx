@@ -100,16 +100,30 @@ export default function Kontakt() {
           message: messageToSend
         })
       });
+      
       if (response.ok) {
+        const data = await response.json();
+        // Always show success message even if email failed (to not expose SMTP issues to users)
         setSubmitted(true);
         setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
         setFormType("");
         setSearchParams({});
       } else {
-        alert("Kunne ikke sende melding. Prøv igjen senere.");
+        // Try to get error details from response
+        let errorMsg = "Kunne ikke sende melding. Prøv igjen senere.";
+        try {
+          const errorData = await response.json();
+          if (errorData.detail) {
+            errorMsg = errorData.detail;
+          }
+        } catch {
+          // If response is not JSON, use default message
+        }
+        alert(errorMsg);
       }
     } catch (err) {
-      alert("Kunne ikke sende melding. Prøv igjen senere.");
+      console.error("Contact form error:", err);
+      alert("Kunne ikke sende melding. Sjekk internettforbindelsen og prøv igjen senere.");
     }
   };
 
