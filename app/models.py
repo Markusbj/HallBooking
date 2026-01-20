@@ -92,6 +92,9 @@ class Booking(Base):
     NB: Vi lagrer `created_by` som string (UUID-str) for å fungere likt på SQLite/PostgreSQL.
     """
     __tablename__ = "bookings"
+    __table_args__ = (
+        {"extend_existing": True},
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     hall: Mapped[str] = mapped_column(String(255))
