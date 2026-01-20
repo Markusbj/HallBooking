@@ -1266,11 +1266,84 @@ class ContactForm(BaseModel):
     subject: str
     message: str
 
+async def send_contact_form_email(
+    contact_name: str,
+    contact_email: str,
+    contact_phone: Optional[str],
+    contact_subject: str,
+    contact_message: str
+):
+    """
+    Send contact form email to configured recipient.
+    This function runs in the background and will not block the request.
+    """
+    try:
+        recipient_email = os.getenv("CONTACT_RECIPIENT_EMAIL", "tgnrk@gmail.com")
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER", "")
+        smtp_password = os.getenv("SMTP_PASSWORD", "")
+        
+        if not smtp_user or not smtp_password:
+            logger.warning("⚠️ SMTP credentials not configured. Email not sent. Set SMTP_USER and SMTP_PASSWORD environment variables.")
+            return
+        
+        # Create email message
+        msg = MIMEMultipart()
+        # Use SMTP user as From (required by most SMTP servers)
+        msg['From'] = smtp_user
+        msg['To'] = recipient_email
+        # Add Reply-To header so replies go to the contact form submitter
+        msg['Reply-To'] = contact_email
+        msg['Subject'] = f"Kontaktskjema: {contact_subject}"
+        
+        # Create email body
+        body = f"""
+Ny henvendelse fra kontaktskjemaet:
+
+Navn: {contact_name}
+E-post: {contact_email}
+Telefon: {contact_phone or 'Ikke oppgitt'}
+Emne: {contact_subject}
+
+Melding:
+{contact_message}
+
+---
+Dette er en automatisk melding fra TG Tromsø kontaktskjema.
+Svar til: {contact_email}
+"""
+        
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # Send email using SMTP with timeout
+        try:
+            # Set timeout to prevent hanging (10 seconds)
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            text = msg.as_string()
+            server.sendmail(smtp_user, recipient_email, text)
+            server.quit()
+            logger.info(f"✅ Contact form email sent successfully to {recipient_email} from {contact_email}")
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"❌ SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD. Error: {str(e)}")
+        except smtplib.SMTPException as e:
+            logger.error(f"❌ SMTP error: {str(e)}")
+        except Exception as e:
+            logger.error(f"❌ Error sending contact form email: {str(e)}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error processing contact form email: {str(e)}")
+
 @app.post("/api/contact")
-async def submit_contact_form(contact: ContactForm):
+async def submit_contact_form(
+    contact: ContactForm,
+    background_tasks: BackgroundTasks
+):
     """
     Handle contact form submissions (kurs, seminar, trening, atferdsproblemer, etc.)
-    Sends email to configured recipient.
+    Sends email to configured recipient in the background.
     """
     logger.info(f"📧 Contact form submission received:")
     logger.info(f"   Name: {contact.name}")
@@ -1279,79 +1352,20 @@ async def submit_contact_form(contact: ContactForm):
     logger.info(f"   Subject: {contact.subject}")
     logger.info(f"   Message: {contact.message}")
     
-    # Send email to configured recipient (default from environment variable)
-    email_sent = False
-    email_error = None
+    # Send email in the background - this won't block the response
+    background_tasks.add_task(
+        send_contact_form_email,
+        contact_name=contact.name,
+        contact_email=contact.email,
+        contact_phone=contact.phone,
+        contact_subject=contact.subject,
+        contact_message=contact.message
+    )
     
-    try:
-        recipient_email = os.getenv("CONTACT_RECIPIENT_EMAIL", "tgnrk@gmail.com")
-        
-        # Create email message
-        msg = MIMEMultipart()
-        msg['From'] = contact.email
-        msg['To'] = recipient_email
-        msg['Subject'] = f"Kontaktskjema: {contact.subject}"
-        
-        # Create email body
-        body = f"""
-Ny henvendelse fra kontaktskjemaet:
-
-Navn: {contact.name}
-E-post: {contact.email}
-Telefon: {contact.phone or 'Ikke oppgitt'}
-Emne: {contact.subject}
-
-Melding:
-{contact.message}
-
----
-Dette er en automatisk melding fra TG Tromsø kontaktskjema.
-"""
-        
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        
-        # Send email using SMTP (Gmail)
-        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        smtp_user = os.getenv("SMTP_USER", "")
-        smtp_password = os.getenv("SMTP_PASSWORD", "")
-        
-        if not smtp_user or not smtp_password:
-            email_error = "SMTP credentials not configured. Set SMTP_USER and SMTP_PASSWORD environment variables."
-            logger.warning(f"⚠️ {email_error}")
-        else:
-            try:
-                server = smtplib.SMTP(smtp_server, smtp_port)
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                text = msg.as_string()
-                server.sendmail(smtp_user, recipient_email, text)
-                server.quit()
-                email_sent = True
-                logger.info(f"✅ Email sent successfully to {recipient_email}")
-            except smtplib.SMTPAuthenticationError as e:
-                email_error = f"SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD. Error: {str(e)}"
-                logger.error(f"❌ {email_error}")
-            except smtplib.SMTPException as e:
-                email_error = f"SMTP error: {str(e)}"
-                logger.error(f"❌ {email_error}")
-            except Exception as e:
-                email_error = f"Error sending email: {str(e)}"
-                logger.error(f"❌ {email_error}")
-        
-    except Exception as e:
-        email_error = f"Error processing email: {str(e)}"
-        logger.error(f"❌ {email_error}")
-    
-    # Return success even if email fails (to not expose SMTP details to users)
-    # But log the error for debugging
-    if email_error:
-        logger.warning(f"⚠️ Contact form submitted but email failed: {email_error}")
-    
+    # Return immediately - email will be sent in background
     return {
         "message": "Takk for din henvendelse! Vi kommer tilbake til deg snart.",
-        "success": True,
-        "email_sent": email_sent
+        "success": True
     }
 
 # News Items API endpoints
