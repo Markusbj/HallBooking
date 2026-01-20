@@ -19,3 +19,4 @@ bcrypt==4.0.1
 tzlocal
 psycopg2-binary
 asyncpg
+httpx

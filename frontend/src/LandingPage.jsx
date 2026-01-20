@@ -257,19 +257,31 @@ export default function LandingPage({ isLoggedIn = false }) {
 
       <footer className="site-footer" aria-label="Bunntekst">
         <div className="footer-inner container">
-          <small>© {new Date().getFullYear()} TG Tromsø — Hundetrening</small>
-          <div className="social-links">
-            <a href="https://www.facebook.com/yourpage" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#1877F2" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22 12.07C22 6.49 17.52 2 11.94 2S2 6.49 2 12.07c0 4.99 3.66 9.13 8.44 9.93v-7.03H8.03v-2.9h2.41V9.41c0-2.39 1.43-3.71 3.62-3.71 1.05 0 2.15.19 2.15.19v2.37h-1.21c-1.19 0-1.56.74-1.56 1.5v1.8h2.65l-.42 2.9h-2.23v7.03C18.34 21.2 22 17.06 22 12.07z"/>
-              </svg>
-            </a>
+          <div className="footer-content">
+            <div className="footer-contact">
+              <h4>Kontaktinfo</h4>
+              <p>TG Tromsø Norsk Rottweilerklubb</p>
+              <p>
+                <a href="mailto:tgtnrk@gmail.com">tgtnrk@gmail.com</a>
+              </p>
+              <p>Organisasjonsnummer: 935584566</p>
+            </div>
+            <div className="footer-copyright">
+              <small>© {new Date().getFullYear()} TG Tromsø — Hundetrening</small>
+            </div>
+            <div className="social-links">
+              <a href="https://www.facebook.com/tgtromso" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="#1877F2" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 12.07C22 6.49 17.52 2 11.94 2S2 6.49 2 12.07c0 4.99 3.66 9.13 8.44 9.93v-7.03H8.03v-2.9h2.41V9.41c0-2.39 1.43-3.71 3.62-3.71 1.05 0 2.15.19 2.15.19v2.37h-1.21c-1.19 0-1.56.74-1.56 1.5v1.8h2.65l-.42 2.9h-2.23v7.03C18.34 21.2 22 17.06 22 12.07z"/>
+                </svg>
+              </a>
 
-            <a href="https://www.instagram.com/yourhandle" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#E4405F" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.65.16 4.29.9 4.45 4.45.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.16 3.65-.9 4.29-4.45 4.45-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-3.65-.16-4.29-.9-4.45-4.45-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.16-3.65.9-4.29 4.45-4.45 1.27-.06 1.65-.07 4.85-.07zm0-2.16c-3.24 0-3.7.01-5.01.07-3.8.17-5.5 1.87-5.67 5.67-.06 1.31-.07 1.77-.07 5.01s.01 3.7.07 5.01c.17 3.8 1.87 5.5 5.67 5.67 1.31.06 1.77.07 5.01.07s3.7-.01 5.01-.07c3.8-.17 5.5-1.87 5.67-5.67.06-1.31.07-1.77.07-5.01s-.01-3.7-.07-5.01c-.17-3.8-1.87-5.5-5.67-5.67-1.31-.06-1.77-.07-5.01-.07zm0 5.84c-2.62 0-4.74 2.12-4.74 4.74s2.12 4.74 4.74 4.74 4.74-2.12 4.74-4.74-2.12-4.74-4.74-4.74zm0 7.81c-1.69 0-3.07-1.38-3.07-3.07s1.38-3.07 3.07-3.07 3.07 1.38 3.07 3.07-1.38 3.07-3.07 3.07zm6.44-8.01c-.61 0-1.11-.5-1.11-1.11s.5-1.11 1.11-1.11 1.11.5 1.11 1.11-.5 1.11-1.11 1.11z"/>
-              </svg>
-            </a>
+              <a href="https://www.instagram.com/tgtromso" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="#E4405F" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.65.16 4.29.9 4.45 4.45.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.16 3.65-.9 4.29-4.45 4.45-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-3.65-.16-4.29-.9-4.45-4.45-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.16-3.65.9-4.29 4.45-4.45 1.27-.06 1.65-.07 4.85-.07zm0-2.16c-3.24 0-3.7.01-5.01.07-3.8.17-5.5 1.87-5.67 5.67-.06 1.31-.07 1.77-.07 5.01s.01 3.7.07 5.01c.17 3.8 1.87 5.5 5.67 5.67 1.31.06 1.77.07 5.01.07s3.7-.01 5.01-.07c3.8-.17 5.5-1.87 5.67-5.67.06-1.31.07-1.77.07-5.01s-.01-3.7-.07-5.01c-.17-3.8-1.87-5.5-5.67-5.67-1.31-.06-1.77-.07-5.01-.07zm0 5.84c-2.62 0-4.74 2.12-4.74 4.74s2.12 4.74 4.74 4.74 4.74-2.12 4.74-4.74-2.12-4.74-4.74-4.74zm0 7.81c-1.69 0-3.07-1.38-3.07-3.07s1.38-3.07 3.07-3.07 3.07 1.38 3.07 3.07-1.38 3.07-3.07 3.07zm6.44-8.01c-.61 0-1.11-.5-1.11-1.11s.5-1.11 1.11-1.11 1.11.5 1.11 1.11-.5 1.11-1.11 1.11z"/>
+                </svg>
+              </a>
+            </div>
           </div>
         </div>
       </footer>

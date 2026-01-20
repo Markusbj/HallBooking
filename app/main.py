@@ -25,6 +25,7 @@ from pathlib import Path
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import httpx
 import shutil
 from pathlib import Path
 import secrets
@@ -965,27 +966,11 @@ async def send_user_credentials_email(user_email: str, user_name: str, password:
     """
     Send email to new user with their login credentials.
     This function will not fail the request if email sending fails.
+    Supports both Resend API (recommended for Railway) and SMTP.
     """
-    try:
-        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        smtp_user = os.getenv("SMTP_USER", "")
-        smtp_password = os.getenv("SMTP_PASSWORD", "")
-        
-        if not smtp_user or not smtp_password:
-            logger.warning("⚠️ SMTP credentials not configured. Email not sent. Set SMTP_USER and SMTP_PASSWORD environment variables.")
-            return
-        
-        # Create email message
-        msg = MIMEMultipart()
-        msg['From'] = smtp_user
-        msg['To'] = user_email
-        msg['Subject'] = "Velkommen til TG Tromsø - Dine innloggingsdetaljer"
-        
-        role_text = "administrator" if is_admin else "standard bruker"
-        
-        # Create email body
-        body = f"""
+    role_text = "administrator" if is_admin else "standard bruker"
+    
+    email_body = f"""
 Hei {user_name or 'der'}!
 
 Din brukerkonto hos TG Tromsø har blitt opprettet.
@@ -1010,25 +995,74 @@ TG Tromsø
 Dette er en automatisk e-post fra TG Tromsø.
 Ikke svar på denne e-posten.
 """
+    
+    # Try Resend API first (works on Railway free tier)
+    resend_api_key = os.getenv("RESEND_API_KEY", "")
+    if resend_api_key:
+        try:
+            sender_email = os.getenv("RESEND_FROM_EMAIL", os.getenv("SMTP_USER", "noreply@tgtromso.no"))
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    "https://api.resend.com/emails",
+                    headers={
+                        "Authorization": f"Bearer {resend_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "from": sender_email,
+                        "to": [user_email],
+                        "subject": "Velkommen til TG Tromsø - Dine innloggingsdetaljer",
+                        "text": email_body,
+                    },
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"✅ Welcome email sent successfully via Resend to {user_email}")
+                    return
+                else:
+                    logger.error(f"❌ Resend API error: {response.status_code} - {response.text}")
+        except Exception as e:
+            logger.error(f"❌ Error sending welcome email via Resend API: {str(e)}")
+            # Fall through to SMTP
+    
+    # Fallback to SMTP if Resend is not configured or failed
+    try:
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER", "")
+        smtp_password = os.getenv("SMTP_PASSWORD", "")
         
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        if not smtp_user or not smtp_password:
+            logger.warning("⚠️ Neither Resend API key nor SMTP credentials configured. Email not sent.")
+            logger.warning("   Set RESEND_API_KEY (recommended for Railway) or SMTP_USER/SMTP_PASSWORD environment variables.")
+            return
+        
+        # Create email message
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = user_email
+        msg['Subject'] = "Velkommen til TG Tromsø - Dine innloggingsdetaljer"
+        
+        msg.attach(MIMEText(email_body, 'plain', 'utf-8'))
         
         # Send email using SMTP
         try:
-            server = smtplib.SMTP(smtp_server, smtp_port)
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
             server.starttls()
             server.login(smtp_user, smtp_password)
             text = msg.as_string()
             server.sendmail(smtp_user, user_email, text)
             server.quit()
-            logger.info(f"✅ Welcome email sent successfully to {user_email}")
+            logger.info(f"✅ Welcome email sent successfully via SMTP to {user_email}")
+        except (smtplib.SMTPAuthenticationError, smtplib.SMTPException, OSError) as e:
+            logger.error(f"❌ SMTP error (Railway may block SMTP on free tier): {str(e)}")
+            logger.warning("   Consider using Resend API (set RESEND_API_KEY) for Railway deployments.")
         except Exception as e:
-            logger.error(f"❌ Error sending welcome email to {user_email}: {e}")
-            # Don't fail the request if email fails, just log it
+            logger.error(f"❌ Error sending welcome email via SMTP to {user_email}: {e}")
             
     except Exception as e:
         logger.error(f"❌ Error processing welcome email for {user_email}: {e}")
-        # Don't fail the request if email fails
 
 class CreateUserRequest(BaseModel):
     email: str
@@ -1276,16 +1310,68 @@ async def send_contact_form_email(
     """
     Send contact form email to configured recipient.
     This function runs in the background and will not block the request.
+    Supports both Resend API (recommended for Railway) and SMTP.
     """
+    recipient_email = os.getenv("CONTACT_RECIPIENT_EMAIL", "tgnrk@gmail.com")
+    
+    # Try Resend API first (works on Railway free tier)
+    resend_api_key = os.getenv("RESEND_API_KEY", "")
+    if resend_api_key:
+        try:
+            email_body = f"""
+Ny henvendelse fra kontaktskjemaet:
+
+Navn: {contact_name}
+E-post: {contact_email}
+Telefon: {contact_phone or 'Ikke oppgitt'}
+Emne: {contact_subject}
+
+Melding:
+{contact_message}
+
+---
+Dette er en automatisk melding fra TG Tromsø kontaktskjema.
+Svar til: {contact_email}
+"""
+            
+            # Get sender email from environment or use default
+            sender_email = os.getenv("RESEND_FROM_EMAIL", os.getenv("SMTP_USER", "noreply@tgtromso.no"))
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    "https://api.resend.com/emails",
+                    headers={
+                        "Authorization": f"Bearer {resend_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "from": sender_email,
+                        "to": [recipient_email],
+                        "reply_to": contact_email,
+                        "subject": f"Kontaktskjema: {contact_subject}",
+                        "text": email_body,
+                    },
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"✅ Contact form email sent successfully via Resend to {recipient_email} from {contact_email}")
+                    return
+                else:
+                    logger.error(f"❌ Resend API error: {response.status_code} - {response.text}")
+        except Exception as e:
+            logger.error(f"❌ Error sending email via Resend API: {str(e)}")
+            # Fall through to SMTP
+    
+    # Fallback to SMTP if Resend is not configured or failed
     try:
-        recipient_email = os.getenv("CONTACT_RECIPIENT_EMAIL", "tgnrk@gmail.com")
         smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         smtp_user = os.getenv("SMTP_USER", "")
         smtp_password = os.getenv("SMTP_PASSWORD", "")
         
         if not smtp_user or not smtp_password:
-            logger.warning("⚠️ SMTP credentials not configured. Email not sent. Set SMTP_USER and SMTP_PASSWORD environment variables.")
+            logger.warning("⚠️ Neither Resend API key nor SMTP credentials configured. Email not sent.")
+            logger.warning("   Set RESEND_API_KEY (recommended for Railway) or SMTP_USER/SMTP_PASSWORD environment variables.")
             return
         
         # Create email message
@@ -1325,13 +1411,12 @@ Svar til: {contact_email}
             text = msg.as_string()
             server.sendmail(smtp_user, recipient_email, text)
             server.quit()
-            logger.info(f"✅ Contact form email sent successfully to {recipient_email} from {contact_email}")
-        except smtplib.SMTPAuthenticationError as e:
-            logger.error(f"❌ SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD. Error: {str(e)}")
-        except smtplib.SMTPException as e:
-            logger.error(f"❌ SMTP error: {str(e)}")
+            logger.info(f"✅ Contact form email sent successfully via SMTP to {recipient_email} from {contact_email}")
+        except (smtplib.SMTPAuthenticationError, smtplib.SMTPException, OSError) as e:
+            logger.error(f"❌ SMTP error (Railway may block SMTP on free tier): {str(e)}")
+            logger.warning("   Consider using Resend API (set RESEND_API_KEY) for Railway deployments.")
         except Exception as e:
-            logger.error(f"❌ Error sending contact form email: {str(e)}")
+            logger.error(f"❌ Error sending contact form email via SMTP: {str(e)}")
         
     except Exception as e:
         logger.error(f"❌ Error processing contact form email: {str(e)}")
