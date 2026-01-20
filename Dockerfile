@@ -17,7 +17,7 @@ COPY Pipfile Pipfile.lock ./
 
 # Installer pipenv og dependencies
 RUN pip install pipenv && \
-    pipenv install --deploy --system
+    pipenv install --system
 
 # Kopier resten av applikasjonen
 COPY . .
