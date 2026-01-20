@@ -85,17 +85,6 @@ class AuthorizationCode(Base):
     expires_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     used_at: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
 
-class Booking(Base):
-    __tablename__ = "bookings"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id: Mapped[str] = mapped_column(String, index=True, nullable=False)  # Reference to User.id
-    hall: Mapped[str] = mapped_column(String(255), nullable=False)
-    start_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    end_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, default=datetime.now)
-
-
 # --- Booking + Abonnement (rettigheter) ---
 class Booking(Base):
     """
