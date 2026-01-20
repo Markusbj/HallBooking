@@ -67,6 +67,36 @@ async def create_db_and_tables():
                 logger.warning(f"Could not add privacy columns (may already exist): {migration_error}")
                 await db.rollback()
 
+            # Migrate bookings table: rename user_id to created_by if needed
+            try:
+                check_booking_query = text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'bookings'
+                """)
+                result = await db.execute(check_booking_query)
+                booking_columns = {row[0] for row in result.fetchall()}
+                
+                if 'user_id' in booking_columns and 'created_by' not in booking_columns:
+                    logger.info("Migrating bookings table: renaming user_id to created_by...")
+                    # Rename column (PostgreSQL syntax)
+                    alter_booking_query = text('ALTER TABLE bookings RENAME COLUMN user_id TO created_by')
+                    await db.execute(alter_booking_query)
+                    await db.commit()
+                    logger.info("✅ Migrated bookings.user_id to created_by")
+                
+                # Add updated_at column if missing
+                if 'updated_at' not in booking_columns:
+                    logger.info("Adding updated_at column to bookings table...")
+                    alter_updated_query = text('ALTER TABLE bookings ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+                    await db.execute(alter_updated_query)
+                    await db.commit()
+                    logger.info("✅ Added updated_at column to bookings")
+                    
+            except Exception as booking_migration_error:
+                logger.warning(f"Could not migrate bookings table (may already be migrated): {booking_migration_error}")
+                await db.rollback()
+
         # Seed default subscription plans (tilgang1/tilgang2) if missing
         try:
             from sqlalchemy import select
