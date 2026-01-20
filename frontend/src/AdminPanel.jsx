@@ -57,6 +57,14 @@ function AdminPanel() {
     is_superuser: false
   });
   const [createdUserPassword, setCreatedUserPassword] = useState(null);
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+  const [editingUserSubscription, setEditingUserSubscription] = useState(null); // user object
+  const [subscriptionForm, setSubscriptionForm] = useState({
+    plan_code: 'tilgang1',
+    hours_per_week: 2,
+    end_date: '', // YYYY-MM-DD
+    extend_months: ''
+  });
 
   useEffect(() => {
     if (activeTab === 'content') {
@@ -67,6 +75,7 @@ function AdminPanel() {
       fetchBookings();
     } else if (activeTab === 'users') {
       fetchUsers();
+      fetchSubscriptionPlans();
     } else if (activeTab === 'news') {
       fetchNewsItems();
     }
@@ -270,6 +279,79 @@ function AdminPanel() {
       
       const data = await response.json();
       setUsers(data.users || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSubscriptionPlans = async () => {
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/admin/subscription-plans`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Kunne ikke hente abonnement-planer');
+      }
+      const data = await response.json();
+      setSubscriptionPlans(data.plans || []);
+    } catch (err) {
+      // Don't block the whole users tab if this fails
+      console.warn(err);
+    }
+  };
+
+  const openSubscriptionEditor = (user) => {
+    setEditingUserSubscription(user);
+    const sub = user.subscription;
+    setSubscriptionForm({
+      plan_code: sub?.plan_code || 'tilgang1',
+      hours_per_week: sub?.hours_per_week ?? 2,
+      end_date: sub?.end_date ? new Date(sub.end_date).toISOString().slice(0, 10) : '',
+      extend_months: ''
+    });
+  };
+
+  const saveUserSubscription = async () => {
+    if (!editingUserSubscription) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        plan_code: subscriptionForm.plan_code,
+        hours_per_week: Number(subscriptionForm.hours_per_week)
+      };
+      if (subscriptionForm.end_date) {
+        // Set end date to end-of-day local, send as ISO
+        const endDt = new Date(`${subscriptionForm.end_date}T23:59:59`);
+        payload.end_date = endDt.toISOString();
+      }
+      if (subscriptionForm.extend_months) {
+        payload.extend_months = Number(subscriptionForm.extend_months);
+      }
+
+      const response = await fetch(`${API}/api/admin/users/${editingUserSubscription.id}/subscription`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Kunne ikke lagre abonnement' }));
+        throw new Error(errorData.detail || 'Kunne ikke lagre abonnement');
+      }
+
+      await fetchUsers();
+      setEditingUserSubscription(null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1651,15 +1733,26 @@ function AdminPanel() {
                           {user.is_verified ? 'Ja' : 'Nei'}
                         </span>
                       </div>
+                      <div className="user-subscription">
+                        <strong>Abonnement:</strong>{' '}
+                        {user.subscription ? (
+                          <span>
+                            {(user.subscription.plan_name || user.subscription.plan_code)} — {user.subscription.hours_per_week}t/uke — til{' '}
+                            {new Date(user.subscription.end_date).toLocaleDateString('no-NO')}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#c33' }}>Ingen</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="user-actions">
                     <button
                       className="btn btn-sm btn-outline"
-                      onClick={() => {/* TODO: Edit user */}}
-                      title="Rediger bruker"
+                      onClick={() => openSubscriptionEditor(user)}
+                      title="Rediger abonnement"
                     >
-                      Rediger
+                      Abonnement
                     </button>
                     <button
                       className="btn btn-sm btn-danger"
@@ -1672,6 +1765,82 @@ function AdminPanel() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Editor Modal */}
+      {editingUserSubscription && (
+        <div className="booking-edit-modal">
+          <div className="modal-overlay" onClick={() => setEditingUserSubscription(null)}></div>
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Rediger abonnement</h3>
+              <button className="modal-close" onClick={() => setEditingUserSubscription(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ marginBottom: '12px', color: '#555' }}>
+                <strong>{editingUserSubscription.full_name || 'Bruker'}</strong> — {editingUserSubscription.email}
+              </div>
+              <div className="form-group">
+                <label>Plan</label>
+                <select
+                  value={subscriptionForm.plan_code}
+                  onChange={(e) => setSubscriptionForm({ ...subscriptionForm, plan_code: e.target.value })}
+                >
+                  {subscriptionPlans.length > 0 ? (
+                    subscriptionPlans.map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.name} ({p.code})
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="tilgang1">Tilgang 1 (1 år)</option>
+                      <option value="tilgang2">Tilgang 2 (6 måneder)</option>
+                    </>
+                  )}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Timer per uke</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={subscriptionForm.hours_per_week}
+                  onChange={(e) => setSubscriptionForm({ ...subscriptionForm, hours_per_week: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Sluttdato (sett direkte)</label>
+                <input
+                  type="date"
+                  value={subscriptionForm.end_date}
+                  onChange={(e) => setSubscriptionForm({ ...subscriptionForm, end_date: e.target.value })}
+                />
+                <small className="form-help">Hvis tom, beholdes eksisterende (eller beregnes fra plan ved første opprettelse).</small>
+              </div>
+              <div className="form-group">
+                <label>Forleng (måneder)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={subscriptionForm.extend_months}
+                  onChange={(e) => setSubscriptionForm({ ...subscriptionForm, extend_months: e.target.value })}
+                  placeholder="f.eks. 1"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setEditingUserSubscription(null)}>
+                Avbryt
+              </button>
+              <button className="btn btn-primary" onClick={saveUserSubscription} disabled={loading}>
+                {loading ? 'Lagrer...' : 'Lagre'}
+              </button>
+            </div>
           </div>
         </div>
       )}

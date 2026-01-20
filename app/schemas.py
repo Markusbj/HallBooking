@@ -31,29 +31,41 @@ class BookingCreate(BaseModel):
         if start is None or end is None:
             raise ValueError("start_time and end_time are required")
 
+        # Cannot book in the past (compare using same tz-awareness as start_time)
         now = datetime.now(start.tzinfo) if start.tzinfo else datetime.now()
         if start < now:
             raise ValueError("Kan ikke booke i fortid")
 
-        # must be same calendar day
-        if start.date() != end.date():
-            raise ValueError("Booking must start and end on the same day")
-
         if start >= end:
             raise ValueError("start_time must be before end_time")
 
-        # allowed window: 17:00 .. 24:00 (midnight)
-        earliest = time(17, 0, 0)
-        latest = time(23, 59, 59, 999999)
+        # Convert to local times for comparison (supports tz-aware inputs)
+        s_local = start if start.tzinfo is None else start.astimezone()
+        e_local = end if end.tzinfo is None else end.astimezone()
 
-        # Convert to naive time objects for comparison
-        s_time = start.time() if start.tzinfo is None else start.astimezone().time()
-        e_time = end.time() if end.tzinfo is None else end.astimezone().time()
+        s_time = s_local.time()
+        e_time = e_local.time()
 
-        if s_time < earliest:
+        earliest_start = time(17, 0, 0)
+        latest_start = time(23, 0, 0)
+
+        if s_time < earliest_start:
             raise ValueError("Bookings may not start before 17:00")
-        if e_time > latest:
-            raise ValueError("Bookings may not end after 24:00 (midnight)")
+        if s_time > latest_start:
+            raise ValueError("Bookings may not start after 23:00")
+
+        # End time must be <= 24:00. Note: 24:00 is represented as 00:00 next day.
+        if s_local.date() == e_local.date():
+            # Same day: end must be before midnight and after start
+            if e_time <= s_time:
+                raise ValueError("end_time must be after start_time")
+            if e_time > time(23, 59, 59, 999999):
+                raise ValueError("Bookings may not end after 24:00 (midnight)")
+        else:
+            # Allow exactly midnight next day
+            from datetime import timedelta as _td
+            if not (e_time == time(0, 0, 0) and e_local.date() == (s_local.date() + _td(days=1))):
+                raise ValueError("Booking must end same day, or at 00:00 the next day")
 
         return self
 
@@ -145,3 +157,37 @@ class NewsItemRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Subscription / rettigheter ---
+class SubscriptionPlanRead(BaseModel):
+    code: str
+    name: str
+    duration_months: int
+    default_hours_per_week: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class UserSubscriptionRead(BaseModel):
+    id: str
+    user_id: str
+    plan_code: str
+    start_date: datetime
+    end_date: datetime
+    hours_per_week: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class AdminUpsertUserSubscription(BaseModel):
+    plan_code: str
+    hours_per_week: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    extend_days: Optional[int] = None
+    extend_months: Optional[int] = None

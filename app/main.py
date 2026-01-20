@@ -15,6 +15,7 @@ from typing import List, Dict, Any
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import uuid
 import logging
 import time
@@ -493,17 +494,16 @@ def _to_local_naive(dt):
         dt = dt.astimezone(local_tz).replace(tzinfo=None)
     return dt
 
-async def _apply_bookings_to_slots(slots: List[Dict[str, Any]], target_date: date_type, db: AsyncSession):
-    bookings = await crud.get_bookings_for_date(db, datetime.combine(target_date, datetime.min.time()))
+def _apply_bookings_to_slots(slots: List[Dict[str, Any]], bookings: List[models.Booking]):
     for booking in bookings:
-        b_start = _to_local_naive(booking.start_time)
-        b_end = _to_local_naive(booking.end_time)
+        b_start = _to_local_naive(getattr(booking, "start_time", None))
+        b_end = _to_local_naive(getattr(booking, "end_time", None))
         for slot in slots:
             slot_start = _to_local_naive(slot["start_time"])
             slot_end = _to_local_naive(slot["end_time"])
             # overlap-test
             if not (b_end <= slot_start or b_start >= slot_end):
-                slot.setdefault("booking_ids", []).append(booking.id)
+                slot.setdefault("booking_ids", []).append(str(getattr(booking, "id", "")))
                 slot["status"] = "booked"
                 slot["color"] = CALENDAR_COLORS.get("booked", slot.get("color"))
                 
@@ -561,7 +561,10 @@ async def get_bookings_calendar(target_date: str, db: AsyncSession = Depends(dat
     except Exception:
         raise HTTPException(status_code=400, detail="target_date must be YYYY-MM-DD")
     slots = _hour_range_for_date(d)
-    await _apply_bookings_to_slots(slots, d, db)
+    day_start = datetime(d.year, d.month, d.day, 0, 0, 0)
+    day_end = day_start + timedelta(days=1)
+    day_bookings = await crud.get_bookings_in_range(db, day_start, day_end)
+    _apply_bookings_to_slots(slots, day_bookings)
     
     # Apply blocked times to slots
     await _apply_blocked_times_to_slots(slots, d, db)
@@ -584,36 +587,70 @@ async def create_booking(booking: BookingCreate, user=Depends(current_active_use
         reason = blocked_info.reason or "Tiden er blokkert"
         raise HTTPException(status_code=400, detail=f"Kan ikke booke: {reason}")
 
-    booking_data = BookingCreate(
+    # Prevent overlaps (single hall calendar)
+    overlaps = await crud.get_bookings_in_range(db, start_local, end_local)
+    if overlaps:
+        raise HTTPException(status_code=400, detail="Tiden er allerede booket")
+
+    # Enforce subscription weekly hours (admins are unlimited)
+    if not getattr(user, "is_superuser", False):
+        sub = await crud.get_active_user_subscription(db, str(getattr(user, "id", "")), at_time=start_local)
+        if not sub:
+            raise HTTPException(status_code=403, detail="Du har ikke et aktivt abonnement og kan ikke booke.")
+
+        hours_limit = int(getattr(sub, "hours_per_week", 0) or 0)
+        if hours_limit <= 0:
+            raise HTTPException(status_code=403, detail="Abonnementet ditt har 0 timer per uke og kan ikke booke.")
+
+        week_start = start_local - timedelta(days=start_local.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_end = week_start + timedelta(days=7)
+
+        week_bookings = await crud.get_user_bookings_in_range(db, str(getattr(user, "id", "")), week_start, week_end)
+        used_seconds = crud.sum_booking_seconds(week_bookings)
+        new_seconds = int((end_local - start_local).total_seconds())
+        limit_seconds = hours_limit * 3600
+
+        if used_seconds + new_seconds > limit_seconds:
+            used_h = used_seconds / 3600
+            remaining_h = max(0.0, (limit_seconds - used_seconds) / 3600)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Ukekvoten er brukt opp. Du har {hours_limit}t/uke, brukt {used_h:.2f}t. Gjenstående {remaining_h:.2f}t.",
+            )
+
+    # Persist booking
+    booking_id = str(uuid.uuid4())
+    db_booking = models.Booking(
+        id=booking_id,
         hall=booking.hall,
         start_time=start_local,
-        end_time=end_local
+        end_time=end_local,
+        created_by=str(getattr(user, "id", "")),
     )
-    db_booking = await crud.create_booking(db, booking_data, str(getattr(user, "id", "")))
-    logger.info(f"Created booking {db_booking.id} by user {getattr(user, 'id', None)}")
-    return {"id": db_booking.id, "msg": "Booking opprettet"}
+    db.add(db_booking)
+    await db.commit()
+    await db.refresh(db_booking)
 
-@app.get("/bookings/{booking_id}")
-async def get_booking(booking_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
-    """Get a specific booking by ID"""
+    logger.info(f"Created booking {booking_id} by user {getattr(user, 'id', None)}")
+    return {"id": booking_id, "msg": "Booking opprettet"}
+
+@app.get("/api/admin/bookings/{booking_id}")
+async def get_booking_admin(booking_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
+    """Get a specific booking by ID (admin only)"""
     _require_admin(user)
-    booking = await crud.get_booking_by_id(db, booking_id)
+    result = await db.execute(select(models.Booking).where(models.Booking.id == booking_id))
+    booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
-    return {
-        "id": booking.id,
-        "hall": booking.hall,
-        "start_time": booking.start_time.isoformat() if isinstance(booking.start_time, datetime) else str(booking.start_time),
-        "end_time": booking.end_time.isoformat() if isinstance(booking.end_time, datetime) else str(booking.end_time),
-        "created_by": booking.user_id,
-        "created_at": booking.created_at
-    }
+    return booking
 
 @app.put("/bookings/{booking_id}")
 async def update_booking(booking_id: str, payload: BookingCreate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     _require_admin(user)
-    existing = await crud.get_booking_by_id(db, booking_id)
-    if not existing:
+    result = await db.execute(select(models.Booking).where(models.Booking.id == booking_id))
+    db_booking = result.scalar_one_or_none()
+    if not db_booking:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
     
     # Normalize incoming datetimes to local naive before storing
@@ -626,13 +663,17 @@ async def update_booking(booking_id: str, payload: BookingCreate, user=Depends(c
         reason = blocked_info.reason or "Tiden er blokkert"
         raise HTTPException(status_code=400, detail=f"Kan ikke oppdatere booking: {reason}")
     
-    await crud.update_booking(
-        db,
-        booking_id=booking_id,
-        hall=payload.hall,
-        start_time=start_local,
-        end_time=end_local
-    )
+    overlaps = await crud.get_bookings_in_range(db, start_local, end_local)
+    overlaps = [b for b in overlaps if str(getattr(b, "id", "")) != booking_id]
+    if overlaps:
+        raise HTTPException(status_code=400, detail="Tiden er allerede booket")
+
+    db_booking.hall = payload.hall
+    db_booking.start_time = start_local
+    db_booking.end_time = end_local
+    db.add(db_booking)
+    await db.commit()
+    await db.refresh(db_booking)
     logger.info(f"Booking {booking_id} oppdatert av admin {getattr(user, 'id', None)}")
     return {"id": booking_id, "msg": "Booking oppdatert"}
 
@@ -645,10 +686,12 @@ class BookingUpdate(BaseModel):
 async def partial_update_booking(booking_id: str, payload: BookingUpdate, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
     """Partially update a booking (admin only)"""
     _require_admin(user)
-    booking = await crud.get_booking_by_id(db, booking_id)
-    if not booking:
+    result = await db.execute(select(models.Booking).where(models.Booking.id == booking_id))
+    db_booking = result.scalar_one_or_none()
+    if not db_booking:
         raise HTTPException(status_code=404, detail="Booking ikke funnet")
-    updates = {}
+
+    updates: Dict[str, Any] = {}
     
     if payload.hall is not None:
         updates["hall"] = payload.hall
@@ -663,21 +706,29 @@ async def partial_update_booking(booking_id: str, payload: BookingUpdate, user=D
     
     # If we're updating times, check if the new time is blocked
     if payload.start_time is not None or payload.end_time is not None:
-        start_time = updates.get("start_time", booking.start_time)
-        end_time = updates.get("end_time", booking.end_time)
+        start_time = updates.get("start_time", db_booking.start_time)
+        end_time = updates.get("end_time", db_booking.end_time)
         
         is_blocked, blocked_info = await crud.is_time_blocked(db, start_time, end_time)
         if is_blocked:
             reason = blocked_info.reason or "Tiden er blokkert"
             raise HTTPException(status_code=400, detail=f"Kan ikke oppdatere booking: {reason}")
+
+        overlaps = await crud.get_bookings_in_range(db, start_time, end_time)
+        overlaps = [b for b in overlaps if str(getattr(b, "id", "")) != booking_id]
+        if overlaps:
+            raise HTTPException(status_code=400, detail="Tiden er allerede booket")
     
-    await crud.update_booking(
-        db,
-        booking_id=booking_id,
-        hall=updates.get("hall"),
-        start_time=updates.get("start_time"),
-        end_time=updates.get("end_time")
-    )
+    if "hall" in updates:
+        db_booking.hall = updates["hall"]
+    if "start_time" in updates:
+        db_booking.start_time = updates["start_time"]
+    if "end_time" in updates:
+        db_booking.end_time = updates["end_time"]
+
+    db.add(db_booking)
+    await db.commit()
+    await db.refresh(db_booking)
     logger.info(f"Booking {booking_id} delvis oppdatert av admin {getattr(user, 'id', None)}")
     return {"id": booking_id, "msg": "Booking oppdatert"}
 
@@ -696,19 +747,24 @@ async def get_my_bookings(user=Depends(current_active_user), db: AsyncSession = 
     """
     Return bookings created by the authenticated user.
     """
-    user_id = getattr(user, "id", None)
-    bookings = await crud.get_bookings_for_user(db, str(user_id))
-    my = []
-    for b in bookings:
-        start = b.start_time.isoformat() if isinstance(b.start_time, datetime) else str(b.start_time)
-        end = b.end_time.isoformat() if isinstance(b.end_time, datetime) else str(b.end_time)
-        my.append({
-            "id": b.id,
-            "hall": b.hall,
-            "start_time": start,
-            "end_time": end,
-        })
-    return {"bookings": my}
+    user_id = str(getattr(user, "id", ""))
+    result = await db.execute(
+        select(models.Booking)
+        .where(models.Booking.created_by == user_id)
+        .order_by(models.Booking.start_time.desc())
+    )
+    bookings = result.scalars().all()
+    return {
+        "bookings": [
+            {
+                "id": str(b.id),
+                "hall": b.hall,
+                "start_time": b.start_time.isoformat(),
+                "end_time": b.end_time.isoformat(),
+            }
+            for b in bookings
+        ]
+    }
 
 @app.get("/api/admin/bookings")
 async def get_all_bookings(user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
@@ -717,40 +773,37 @@ async def get_all_bookings(user=Depends(current_active_user), db: AsyncSession =
     """
     _require_admin(user)
     
-    all_bookings = []
-    bookings = await crud.get_all_bookings(db)
-    for b in bookings:
-        # Get user information
+    result = await db.execute(select(models.Booking).order_by(models.Booking.start_time.desc()))
+    all_db_bookings = result.scalars().all()
+
+    all_bookings: List[Dict[str, Any]] = []
+    for b in all_db_bookings:
         user_info = None
-        if b.user_id:
+        if getattr(b, "created_by", None):
             try:
-                user_info = await crud.get_user_by_id(db, b.user_id)
-            except:
-                user_info = {"id": b.user_id, "email": "Ukjent bruker", "name": "Ukjent bruker"}
-        if user_info and not isinstance(user_info, dict):
-            user_info = {
-                "id": getattr(user_info, "id", None),
-                "email": getattr(user_info, "email", None),
-                "name": getattr(user_info, "full_name", None),
-                "phone": getattr(user_info, "phone", None)
+                u = await crud.get_user_by_id(db, b.created_by)
+                if u:
+                    user_info = {
+                        "id": str(getattr(u, "id", "")),
+                        "email": getattr(u, "email", ""),
+                        "name": getattr(u, "full_name", "") or getattr(u, "name", "") or "",
+                        "phone": getattr(u, "phone", "") or "",
+                    }
+            except Exception:
+                user_info = {"id": b.created_by, "email": "Ukjent bruker", "name": "Ukjent bruker"}
+
+        all_bookings.append(
+            {
+                "id": str(b.id),
+                "hall": b.hall,
+                "start_time": b.start_time.isoformat(),
+                "end_time": b.end_time.isoformat(),
+                "created_by": b.created_by,
+                "user": user_info,
+                "created_at": (b.created_at.isoformat() if getattr(b, "created_at", None) else b.start_time.isoformat()),
             }
-        
-        start = b.start_time.isoformat() if isinstance(b.start_time, datetime) else str(b.start_time)
-        end = b.end_time.isoformat() if isinstance(b.end_time, datetime) else str(b.end_time)
-        
-        all_bookings.append({
-            "id": b.id,
-            "hall": b.hall,
-            "start_time": start,
-            "end_time": end,
-            "created_by": b.user_id,
-            "user": user_info,
-            "created_at": b.created_at or start  # Use start_time as fallback
-        })
-    
-    # Sort by start_time (newest first)
-    all_bookings.sort(key=lambda x: x["start_time"], reverse=True)
-    
+        )
+
     return {"bookings": all_bookings}
 
 @app.get("/api/admin/users")
@@ -761,7 +814,136 @@ async def get_all_users(user=Depends(current_active_user), db: AsyncSession = De
     _require_admin(user)
     
     users = await crud.get_all_users(db)
-    return {"users": users}
+    out: List[Dict[str, Any]] = []
+    for u in users:
+        uid = str(getattr(u, "id", ""))
+        sub = await crud.get_current_user_subscription_record(db, uid)
+        plan = await crud.get_subscription_plan(db, sub.plan_code) if sub else None
+        out.append(
+            {
+                "id": uid,
+                "email": getattr(u, "email", ""),
+                "full_name": getattr(u, "full_name", None),
+                "phone": getattr(u, "phone", None),
+                "is_active": bool(getattr(u, "is_active", False)),
+                "is_superuser": bool(getattr(u, "is_superuser", False)),
+                "is_verified": bool(getattr(u, "is_verified", False)),
+                "subscription": (
+                    {
+                        "id": str(getattr(sub, "id", "")),
+                        "plan_code": sub.plan_code,
+                        "plan_name": getattr(plan, "name", None) if plan else None,
+                        "hours_per_week": int(getattr(sub, "hours_per_week", 0) or 0),
+                        "start_date": sub.start_date.isoformat(),
+                        "end_date": sub.end_date.isoformat(),
+                        "is_active": bool(getattr(sub, "is_active", True)),
+                    }
+                    if sub
+                    else None
+                ),
+            }
+        )
+    return {"users": out}
+
+
+@app.get("/api/admin/subscription-plans")
+async def admin_list_subscription_plans(user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
+    _require_admin(user)
+    plans = await crud.get_subscription_plans(db, active_only=False)
+    return {
+        "plans": [
+            {
+                "code": p.code,
+                "name": p.name,
+                "duration_months": p.duration_months,
+                "default_hours_per_week": p.default_hours_per_week,
+                "is_active": p.is_active,
+            }
+            for p in plans
+        ]
+    }
+
+
+@app.get("/api/admin/users/{user_id}/subscription")
+async def admin_get_user_subscription(user_id: str, user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
+    _require_admin(user)
+    sub = await crud.get_current_user_subscription_record(db, user_id)
+    if not sub:
+        return {"subscription": None}
+    plan = await crud.get_subscription_plan(db, sub.plan_code)
+    return {
+        "subscription": {
+            "id": str(sub.id),
+            "user_id": sub.user_id,
+            "plan_code": sub.plan_code,
+            "plan_name": getattr(plan, "name", None) if plan else None,
+            "start_date": sub.start_date.isoformat(),
+            "end_date": sub.end_date.isoformat(),
+            "hours_per_week": int(sub.hours_per_week),
+            "is_active": bool(sub.is_active),
+        }
+    }
+
+
+@app.put("/api/admin/users/{user_id}/subscription")
+async def admin_upsert_user_subscription(
+    user_id: str,
+    payload: schemas.AdminUpsertUserSubscription,
+    user=Depends(current_active_user),
+    db: AsyncSession = Depends(database.get_db),
+):
+    _require_admin(user)
+    try:
+        sub = await crud.upsert_user_subscription(
+            db,
+            user_id=user_id,
+            plan_code=payload.plan_code,
+            hours_per_week=payload.hours_per_week,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+            extend_days=payload.extend_days,
+            extend_months=payload.extend_months,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    plan = await crud.get_subscription_plan(db, sub.plan_code)
+    return {
+        "subscription": {
+            "id": str(sub.id),
+            "user_id": sub.user_id,
+            "plan_code": sub.plan_code,
+            "plan_name": getattr(plan, "name", None) if plan else None,
+            "start_date": sub.start_date.isoformat(),
+            "end_date": sub.end_date.isoformat(),
+            "hours_per_week": int(sub.hours_per_week),
+            "is_active": bool(sub.is_active),
+        }
+    }
+
+
+@app.get("/users/me/subscription")
+async def get_my_subscription(user=Depends(current_active_user), db: AsyncSession = Depends(database.get_db)):
+    """
+    Return current user's active subscription (for UI/info).
+    """
+    if getattr(user, "is_superuser", False):
+        return {"subscription": {"role": "admin", "unlimited": True}}
+
+    sub = await crud.get_active_user_subscription(db, str(getattr(user, "id", "")), at_time=datetime.now())
+    if not sub:
+        return {"subscription": None}
+    plan = await crud.get_subscription_plan(db, sub.plan_code)
+    return {
+        "subscription": {
+            "id": str(sub.id),
+            "plan_code": sub.plan_code,
+            "plan_name": getattr(plan, "name", None) if plan else None,
+            "start_date": sub.start_date.isoformat(),
+            "end_date": sub.end_date.isoformat(),
+            "hours_per_week": int(sub.hours_per_week),
+        }
+    }
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

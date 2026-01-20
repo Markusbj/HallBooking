@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
 from .database import Base
 import uuid
-from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
 from datetime import datetime
@@ -96,6 +95,54 @@ class Booking(Base):
     end_time: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime, default=datetime.now)
 
+
+# --- Booking + Abonnement (rettigheter) ---
+class Booking(Base):
+    """
+    Persistente bookinger.
+    NB: Vi lagrer `created_by` som string (UUID-str) for å fungere likt på SQLite/PostgreSQL.
+    """
+    __tablename__ = "bookings"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    hall: Mapped[str] = mapped_column(String(255))
+    start_time: Mapped[datetime] = mapped_column(DateTime, index=True)
+    end_time: Mapped[datetime] = mapped_column(DateTime, index=True)
+    created_by: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class SubscriptionPlan(Base):
+    """
+    Abonnement-planer (tilgang1/tilgang2).
+    """
+    __tablename__ = "subscription_plans"
+
+    code: Mapped[str] = mapped_column(String(50), primary_key=True)  # e.g. "tilgang1"
+    name: Mapped[str] = mapped_column(String(255))
+    duration_months: Mapped[int] = mapped_column(Integer)  # 12, 6, ...
+    default_hours_per_week: Mapped[int] = mapped_column(Integer, default=2)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class UserSubscription(Base):
+    """
+    Brukerens aktive abonnement (kan også brukes som historikk hvis man setter is_active=False).
+    """
+    __tablename__ = "user_subscriptions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)  # UUID-str
+    plan_code: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    hours_per_week: Mapped[int] = mapped_column(Integer, default=2)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 

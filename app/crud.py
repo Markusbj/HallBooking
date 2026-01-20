@@ -1,99 +1,263 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime, timezone
+
 from . import models, schemas
 
-async def create_booking(db: AsyncSession, booking: schemas.BookingCreate, user_id: str):
+def _add_months(dt: datetime, months: int) -> datetime:
+    """
+    Add `months` calendar months to a datetime (naive).
+    If the target month has fewer days, clamp to last day of month.
+    """
+    if months == 0:
+        return dt
+
+    year = dt.year + (dt.month - 1 + months) // 12
+    month = (dt.month - 1 + months) % 12 + 1
+
+    # last day of target month
+    if month == 12:
+        next_month = datetime(year + 1, 1, 1)
+    else:
+        next_month = datetime(year, month + 1, 1)
+    last_day = (next_month - timedelta(days=1)).day
+
+    day = min(dt.day, last_day)
+    return dt.replace(year=year, month=month, day=day)
+
+
+def _to_naive_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if getattr(dt, "tzinfo", None) is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+async def create_booking(db: AsyncSession, booking: schemas.BookingCreate, user_id: str) -> models.Booking:
     db_booking = models.Booking(
-        user_id=user_id,
+        id=str(uuid.uuid4()),
+        created_by=str(user_id),
         hall=booking.hall,
         start_time=booking.start_time,
-        end_time=booking.end_time
+        end_time=booking.end_time,
     )
     db.add(db_booking)
     await db.commit()
     await db.refresh(db_booking)
-    return db_booking  # return object so route can respond with created booking
+    return db_booking
 
-async def get_bookings(db: AsyncSession, skip=0, limit=10):
-    result = await db.execute(select(models.Booking).offset(skip).limit(limit))
+
+async def get_bookings_in_range(
+    db: AsyncSession,
+    start_time: datetime,
+    end_time: datetime,
+    hall: Optional[str] = None,
+) -> List[models.Booking]:
+    """
+    Returns bookings that overlap [start_time, end_time).
+    """
+    q = select(models.Booking).where(
+        models.Booking.start_time < end_time,
+        models.Booking.end_time > start_time,
+    )
+    if hall:
+        q = q.where(models.Booking.hall == hall)
+    result = await db.execute(q)
     return result.scalars().all()
 
+
+async def get_user_bookings_in_range(
+    db: AsyncSession,
+    user_id: str,
+    start_time: datetime,
+    end_time: datetime,
+) -> List[models.Booking]:
+    q = select(models.Booking).where(
+        models.Booking.created_by == str(user_id),
+        models.Booking.start_time < end_time,
+        models.Booking.end_time > start_time,
+    )
+    result = await db.execute(q)
+    return result.scalars().all()
+
+
+async def delete_booking(db: AsyncSession, booking_id: str) -> Optional[models.Booking]:
+    result = await db.execute(select(models.Booking).where(models.Booking.id == booking_id))
+    booking = result.scalar_one_or_none()
+    if not booking:
+        return None
+    await db.delete(booking)
+    await db.commit()
+    return booking
+
 # --- NEW: update user profile helper ---
-async def get_user_by_id(db: AsyncSession, user_id: str):
+async def get_user_by_id(db: AsyncSession, user_id):
     """Get user by ID"""
-    result = await db.execute(select(models.User).filter(models.User.id == user_id))
+    # User.id er UUID i fastapi-users; prøv å parse fra str ved behov
+    uid = user_id
+    if isinstance(user_id, str):
+        try:
+            uid = uuid.UUID(user_id)
+        except Exception:
+            uid = user_id
+    result = await db.execute(select(models.User).filter(models.User.id == uid))
     return result.scalar_one_or_none()
 
 async def get_user_by_uuid(db: AsyncSession, user_id: str):
     """Get user by UUID string"""
-    result = await db.execute(select(models.User).filter(models.User.id == user_id))
-    return result.scalar_one_or_none()
+    return await get_user_by_id(db, user_id)
 
 async def get_all_users(db: AsyncSession):
     """Get all users"""
     result = await db.execute(select(models.User))
     return result.scalars().all()
 
-# Booking CRUD operations
-async def get_booking_by_id(db: AsyncSession, booking_id: str):
-    """Get booking by ID"""
-    result = await db.execute(select(models.Booking).filter(models.Booking.id == booking_id))
+# --- Subscription / rettigheter ---
+async def get_subscription_plans(db: AsyncSession, active_only: bool = True) -> List[models.SubscriptionPlan]:
+    q = select(models.SubscriptionPlan)
+    if active_only:
+        q = q.where(models.SubscriptionPlan.is_active == True)  # noqa: E712
+    q = q.order_by(models.SubscriptionPlan.code.asc())
+    result = await db.execute(q)
+    return result.scalars().all()
+
+
+async def get_subscription_plan(db: AsyncSession, code: str) -> Optional[models.SubscriptionPlan]:
+    result = await db.execute(select(models.SubscriptionPlan).where(models.SubscriptionPlan.code == code))
     return result.scalar_one_or_none()
 
-async def get_bookings_for_date(db: AsyncSession, target_date: datetime):
-    """Get bookings overlapping a specific date"""
-    start_of_day = datetime.combine(target_date.date(), datetime.min.time())
-    end_of_day = datetime.combine(target_date.date(), datetime.max.time())
-    result = await db.execute(
-        select(models.Booking)
-        .filter(models.Booking.start_time < end_of_day)
-        .filter(models.Booking.end_time > start_of_day)
-    )
-    return result.scalars().all()
 
-async def get_bookings_for_user(db: AsyncSession, user_id: str):
-    """Get bookings for a specific user"""
-    result = await db.execute(
-        select(models.Booking).filter(models.Booking.user_id == user_id)
-    )
-    return result.scalars().all()
-
-async def get_all_bookings(db: AsyncSession):
-    """Get all bookings"""
-    result = await db.execute(select(models.Booking))
-    return result.scalars().all()
-
-async def update_booking(
+async def get_active_user_subscription(
     db: AsyncSession,
-    booking_id: str,
-    hall: str | None = None,
-    start_time: datetime | None = None,
-    end_time: datetime | None = None
-):
-    """Update booking fields"""
-    booking = await get_booking_by_id(db, booking_id)
-    if not booking:
-        return None
-    if hall is not None:
-        booking.hall = hall
-    if start_time is not None:
-        booking.start_time = start_time
-    if end_time is not None:
-        booking.end_time = end_time
-    db.add(booking)
-    await db.commit()
-    await db.refresh(booking)
-    return booking
+    user_id: str,
+    at_time: Optional[datetime] = None,
+) -> Optional[models.UserSubscription]:
+    """
+    Return active subscription for a user at given time (defaults to now).
+    """
+    at_time = at_time or datetime.now()
+    q = (
+        select(models.UserSubscription)
+        .where(models.UserSubscription.user_id == str(user_id))
+        .where(models.UserSubscription.is_active == True)  # noqa: E712
+        .where(models.UserSubscription.start_date <= at_time)
+        .where(models.UserSubscription.end_date >= at_time)
+        .order_by(models.UserSubscription.end_date.desc())
+    )
+    result = await db.execute(q)
+    return result.scalars().first()
 
-async def delete_booking(db: AsyncSession, booking_id: str):
-    """Delete booking by ID"""
-    booking = await get_booking_by_id(db, booking_id)
-    if not booking:
-        return None
-    await db.delete(booking)
+
+async def get_current_user_subscription_record(
+    db: AsyncSession,
+    user_id: str,
+) -> Optional[models.UserSubscription]:
+    """
+    Return the user's current subscription record (is_active=True), even if expired.
+    Useful for admin to extend/adjust.
+    """
+    q = (
+        select(models.UserSubscription)
+        .where(models.UserSubscription.user_id == str(user_id))
+        .where(models.UserSubscription.is_active == True)  # noqa: E712
+        .order_by(models.UserSubscription.updated_at.desc())
+    )
+    result = await db.execute(q)
+    return result.scalars().first()
+
+
+async def upsert_user_subscription(
+    db: AsyncSession,
+    user_id: str,
+    plan_code: str,
+    *,
+    hours_per_week: Optional[int] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    extend_days: Optional[int] = None,
+    extend_months: Optional[int] = None,
+) -> models.UserSubscription:
+    """
+    Create or update the user's active subscription.
+    - If end_date is omitted, it's computed from plan duration.
+    - extend_days / extend_months extends the (existing or computed) end_date.
+    """
+    plan = await get_subscription_plan(db, plan_code)
+    if not plan:
+        raise ValueError(f"Unknown subscription plan: {plan_code}")
+
+    if hours_per_week is None:
+        hours_per_week = int(getattr(plan, "default_hours_per_week", 2) or 2)
+
+    # Normalize datetimes (store as naive UTC to match TIMESTAMP WITHOUT TIME ZONE)
+    start_date = _to_naive_utc(start_date)
+    end_date = _to_naive_utc(end_date)
+
+    # Find current active sub (even if not currently within date range; admin might extend)
+    current_q = (
+        select(models.UserSubscription)
+        .where(models.UserSubscription.user_id == str(user_id))
+        .where(models.UserSubscription.is_active == True)  # noqa: E712
+        .order_by(models.UserSubscription.updated_at.desc())
+    )
+    current_res = await db.execute(current_q)
+    current = current_res.scalars().first()
+
+    if current:
+        effective_start = start_date or current.start_date
+        effective_end = end_date or current.end_date
+
+        if extend_months:
+            effective_end = _add_months(effective_end, int(extend_months))
+        if extend_days:
+            effective_end = effective_end + timedelta(days=int(extend_days))
+
+        current.plan_code = plan_code
+        current.start_date = effective_start
+        current.end_date = effective_end
+        current.hours_per_week = int(hours_per_week)
+        current.updated_at = datetime.now()
+        db.add(current)
+        await db.commit()
+        await db.refresh(current)
+        return current
+
+    now = datetime.now()
+    effective_start = start_date or now
+    effective_end = end_date or _add_months(effective_start, int(plan.duration_months))
+    if extend_months:
+        effective_end = _add_months(effective_end, int(extend_months))
+    if extend_days:
+        effective_end = effective_end + timedelta(days=int(extend_days))
+
+    new_sub = models.UserSubscription(
+        id=str(uuid.uuid4()),
+        user_id=str(user_id),
+        plan_code=plan_code,
+        start_date=effective_start,
+        end_date=effective_end,
+        hours_per_week=int(hours_per_week),
+        is_active=True,
+    )
+    db.add(new_sub)
     await db.commit()
-    return booking
+    await db.refresh(new_sub)
+    return new_sub
+
+
+def sum_booking_seconds(bookings: List[models.Booking]) -> int:
+    total = 0
+    for b in bookings:
+        try:
+            total += int((b.end_time - b.start_time).total_seconds())
+        except Exception:
+            pass
+    return total
 
 async def update_user_profile(db: AsyncSession, user_id, data: dict):
     """

@@ -66,6 +66,41 @@ async def create_db_and_tables():
                 # Log the error but continue
                 logger.warning(f"Could not add privacy columns (may already exist): {migration_error}")
                 await db.rollback()
+
+        # Seed default subscription plans (tilgang1/tilgang2) if missing
+        try:
+            from sqlalchemy import select
+            from .models import SubscriptionPlan
+
+            async with AsyncSessionLocal() as db:
+                existing = await db.execute(select(SubscriptionPlan.code))
+                existing_codes = {row[0] for row in existing.fetchall()}
+
+                defaults = [
+                    SubscriptionPlan(
+                        code="tilgang1",
+                        name="Tilgang 1 (1 år)",
+                        duration_months=12,
+                        default_hours_per_week=2,
+                        is_active=True,
+                    ),
+                    SubscriptionPlan(
+                        code="tilgang2",
+                        name="Tilgang 2 (6 måneder)",
+                        duration_months=6,
+                        default_hours_per_week=2,
+                        is_active=True,
+                    ),
+                ]
+
+                to_add = [p for p in defaults if p.code not in existing_codes]
+                if to_add:
+                    logger.info(f"Seeding subscription plans: {[p.code for p in to_add]}")
+                    db.add_all(to_add)
+                    await db.commit()
+                    logger.info("✅ Seeded subscription plans")
+        except Exception as seed_error:
+            logger.warning(f"Could not seed subscription plans: {seed_error}")
                 
     except Exception as e:
         logger.error(f"Error creating database tables: {e}")
